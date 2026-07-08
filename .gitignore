@@ -1,0 +1,15 @@
+# Object and executable files.
+build/
+*.obj
+*.a
+*.so
+*.dll
+*.lib
+*.exe
+*.o
+*.a
+*.core
+
+# Misc.
+.DS_Store
+Thumbs.db
