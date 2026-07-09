@@ -48,7 +48,7 @@ int main(int argc, char **argv) {
 	/* Print all tokens. */
 	cur = tokens;
 	printf("All lexed tokens:\n");
-	while (cur != NULL) {
+	while (*cur != NULL) {
 		printf("\"%s\"\n", *cur);
 		cur++;
 	}
@@ -56,9 +56,10 @@ int main(int argc, char **argv) {
 	/* Free all tokens. */
 	cur = tokens;
 	do {
-		if (cur)
-			free(cur);
-	} while (cur++ != NULL);
+		if (*cur)
+			free(*cur);
+		cur++;
+	} while (*cur != NULL);
 	free(tokens);
 
 	return 0;
@@ -111,6 +112,7 @@ char** lexer(const char *code) {
 
 			goto new_token;
 		case LEXER_START:
+			/* Start of a brand new string. */
 			stage = LEXER_STRING;
 			goto new_token;
 		case LEXER_INTAG:
