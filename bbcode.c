@@ -23,9 +23,31 @@ typedef enum lexer_stage_e {
 	LEXER_OUTTAG
 } lexer_stage_t;
 
+/**
+ * Types of atoms.
+ */
+typedef enum atom_type_e {
+	ATOM_RAW = 0,
+	ATOM_PRE,
+	ATOM_TAG_OPEN,
+	ATOM_TAG_ARG,
+	ATOM_TAG_CLOSE
+} atom_type_t;
+
+/**
+ * Atom object definition.
+ */
+typedef struct atom_s {
+	atom_type_t type;
+	char *value;
+} atom_t;
+
 /* Function prototypes. */
 int lex(const char *str, const char **start, const char **end);
 char** lexer(const char *code);
+atom_t* parse_atom(char **tokens, char ***next);
+void atom_free(atom_t *atom);
+void atom_print(const atom_t *atom);
 
 /**
  * Application's main entry point.
@@ -55,6 +77,19 @@ int main(int argc, char **argv) {
 		cur++;
 	}
 
+	printf("Parsing atoms...\n");
+	cur = tokens;
+	while (*cur != NULL) {
+		atom_t *atom;
+		atom = parse_atom(cur, &cur);
+		if (atom) {
+			atom_print(atom);
+			atom_free(atom);
+			atom = NULL;
+		}
+	}
+
+#if 0
 	/* Free all tokens. */
 	cur = tokens;
 	do {
@@ -62,6 +97,7 @@ int main(int argc, char **argv) {
 			free(*cur);
 		cur++;
 	} while (*cur != NULL);
+#endif
 	free(tokens);
 
 	return 0;
@@ -190,4 +226,136 @@ int lex(const char *str, const char **start, const char **end) {
 	}
 
 	return *end - *start;
+}
+
+char** parse_tag(atom_t *atom, char **tokens) {
+	char **next = tokens;
+
+	if (**next == '/') {
+		atom->type = ATOM_TAG_CLOSE;
+		free(*next);
+		*next = NULL;
+		next++;
+	} else {
+		atom->type = ATOM_TAG_OPEN;
+	}
+
+	/* Extract value and normalize tag value. */
+	atom->value = *next;
+	/* TODO: Make value lowercase. */
+	next++;
+
+	return next;
+}
+
+/**
+ * Parses the next atom from the tokens list.
+ *
+ * @warning This function will free unused tokens from the tokens list.
+ *
+ * @param tokens Tokens list.
+ * @param next   Pointer to where the next token to be parsed.
+ *
+ * @return Parsed a dynamically allocated atom object.
+ */
+atom_t* parse_atom(char **tokens, char ***next) {
+	atom_t *atom;
+	static atom_type_t last_type;
+
+	atom = malloc(sizeof(atom_t));
+	atom->value = NULL;
+	switch (**tokens) {
+	case '[':
+		/* Tag */
+		free(*tokens);
+		*tokens = NULL;
+		*next = parse_tag(atom, tokens + 1);
+		break;
+	case ']':
+		/* Closing brace of tag. */
+		if ((last_type == ATOM_TAG_OPEN) || (last_type == ATOM_TAG_CLOSE)) {
+			free(*tokens);
+			*tokens = NULL;
+			*next = tokens + 1;
+			return NULL;
+		}
+		goto text_atom;
+	case '=':
+		if (last_type == ATOM_TAG_OPEN) {
+			atom->type = ATOM_TAG_ARG;
+			free(*tokens);
+			*tokens = NULL;
+			atom->value = *(tokens + 1);
+			*next = tokens + 2;
+			break;
+		}
+		goto text_atom;
+	default:
+		/* Text */
+		text_atom:
+		atom->type = ATOM_RAW;
+		atom->value = *tokens;
+		*next = tokens + 1;
+		break;
+	}
+
+	last_type = atom->type;
+	return atom;
+}
+
+/**
+ * Frees up any resources taken by an atom object.
+ *
+ * @param atom Atom object to be completely freed.
+ */
+void atom_free(atom_t *atom) {
+	/* Invalidate type and free value string. */
+	atom->type = -1;
+	if (atom->value) {
+		free(atom->value);
+		atom->value = NULL;
+	}
+
+	/* Free the atom object itself. */
+	free(atom);
+}
+
+/**
+ * Prints out the contents of an atom in the format of an intermediate output
+ * language for formatters to use.
+ *
+ * @param atom Atom to be printed out.
+ */
+void atom_print(const atom_t *atom) {
+	/* Type */
+	switch (atom->type) {
+	case ATOM_RAW:
+		printf("TEXT");
+		break;
+	case ATOM_PRE:
+		printf("PREFMT");
+		break;
+	case ATOM_TAG_OPEN:
+		printf("TAG_OPEN");
+		break;
+	case ATOM_TAG_ARG:
+		printf("TAG_ARG");
+		break;
+	case ATOM_TAG_CLOSE:
+		printf("TAG_CLOSE");
+		break;
+	default:
+		printf("UNKNOWN");
+	}
+	putchar('\t');
+
+	/* Value */
+#ifdef _DEBUG
+	putchar('"');
+#endif
+	printf("%s", atom->value);
+#ifdef _DEBUG
+	putchar('"');
+#endif
+	putchar('\n');
 }
