@@ -38,7 +38,9 @@ char** lexer(const char *code);
 int main(int argc, char **argv) {
 	char *code = "This is an example of [b]BBCode[/b]!\n\nIt's very simple, "
 		"[url=https://nathancampos.me/assets/images/http-status/404.jpg]but "
-		"it's honest work[/url].\n\nThis is something/somewhere, and 2+2=4.";
+		"it's honest work[/url].\n\n[code]This is [b]BBCode[/b] that\nis "
+		"ignored. Hopefully [this= is does not break things.[/code]\n\nThis "
+		"is something/somewhere, and 2+2=4.";
 	char **tokens;
 	char **cur;
 
@@ -90,6 +92,10 @@ char** lexer(const char *code) {
 	while ((ret = lex(start, &start, &end)) > 0) {
 		switch (stage) {
 		case LEXER_INARG:
+			/* Opening tags always generate a new token. For code blocks. */
+			if (*start == '[')
+				goto new_token;
+
 			/* Treat all tokens that are not ']' as a single token. */
 			if ((*tokens[count - 2] != '=') && (*start != ']')) {
 				strcatdelim_alloc(&tokens[count - 2], start, end);
