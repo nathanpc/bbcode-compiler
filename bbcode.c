@@ -14,6 +14,7 @@
 
 /* Function prototypes. */
 int lex(const char *str, const char **start, const char **end);
+char** lexer(const char *code);
 
 /**
  * Application's main entry point.
@@ -25,26 +26,69 @@ int lex(const char *str, const char **start, const char **end);
  */
 int main(int argc, char **argv) {
 	char *code = "This is an example of [b]BBCode[/b]!\n\nIt's very simple, "
-		"[url=https://nathancampos.me/assets/images/http-status/404.jpg]but it's "
-		"honest work[/url].";
-	const char *start;
-	const char *end;
-	int ret;
+		"[url=https://nathancampos.me/assets/images/http-status/404.jpg]but "
+		"it's honest work[/url].\n\nThis is something/somewhere, and 2+2=4.";
+	char **tokens;
+	char **cur;
 
-	start = code;
-	while ((ret = lex(start, &start, &end)) > 0) {
-		const char *tmp = start;
+	/* Pass the BBCode through the lexer and extract tokens. */
+	tokens = lexer(code);
 
-		putchar('"');
-		while (tmp != end) {
-			putchar(*tmp++);
-		}
-		printf("\" (%d)\n", ret);
-
-		start = end;
+	/* Print all tokens. */
+	cur = tokens;
+	while (cur != NULL) {
+		printf("\"%s\"\n", *cur);
+		cur++;
 	}
 
-	return ret;
+	/* Free all tokens. */
+	cur = tokens;
+	do {
+		if (cur)
+			free(cur);
+	} while (cur++ != NULL);
+	free(tokens);
+
+	return 0;
+}
+
+/**
+ * Lexes the entire code provided.
+ *
+ * @param code   BBCode string to be lexed.
+ *
+ * @return List of tokens lexed from the provided string.
+ */
+char** lexer(const char *code) {
+	const char *start;
+	const char *end;
+	char **tokens;
+	char *buf;
+	int count;
+	int ret;
+
+	/* Allocate our initial token list. */
+	count = 1;
+	tokens = malloc(sizeof(char*));
+
+	buf = NULL;
+	start = code;
+	while ((ret = lex(start, &start, &end)) > 0) {
+		strcatdelim_alloc(&buf, start, end);
+		tokens[count - 1] = buf;
+
+		printf("LEXER \"%s\"\n", buf);
+
+		/* Move to the next token in the string. */
+		start = end;
+		count++;
+
+		/* Reset all buffers. */
+		tokens = realloc(tokens, count * sizeof(char*));
+		buf = tokens[count - 1] = NULL;
+	}
+
+	return tokens;
 }
 
 /**

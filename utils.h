@@ -9,5 +9,7 @@
 #define _BBCODE_UTILS_H
 
 int chrchr(char ch, const char *chars);
+int strcatdelim(char *buf, const char *start, const char *end);
+int strcatdelim_alloc(char **buf, const char *start, const char *end);
 
 #endif /* _BBCODE_UTILS_H */
