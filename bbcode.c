@@ -73,35 +73,19 @@ int main(int argc, char **argv) {
 	/* Pass the BBCode through the lexer and extract tokens. */
 	tokens = lexer(code);
 
-	/* Print all tokens. */
-	cur = tokens;
-	printf("All lexed tokens:\n");
-	while (*cur != NULL) {
-		printf("\"%s\"\n", *cur);
-		cur++;
-	}
-
-	printf("Parsing atoms...\n");
+	/* Parse atoms and print them out. */
 	cur = tokens;
 	while (*cur != NULL) {
-		atom_t *atom;
-		atom = parse_atom(cur, &cur);
-		if (atom) {
-			atom_print(atom);
-			atom_free(atom);
-			atom = NULL;
-		}
+		atom_t *atom = parse_atom(cur, &cur);
+		if (!atom)
+			continue;
+
+		atom_print(atom);
+		atom_free(atom);
+		atom = NULL;
 	}
 
-#if 0
-	/* Free all tokens. */
-	cur = tokens;
-	do {
-		if (*cur)
-			free(*cur);
-		cur++;
-	} while (*cur != NULL);
-#endif
+	/* Free the tokens list. */
 	free(tokens);
 
 	return 0;
@@ -168,7 +152,9 @@ char** lexer(const char *code) {
 			break;
 		}
 		
+#ifdef _DEBUG
 		printf("LEXER %d \"%s\" %d\n", stage, tokens[count - 1], count);
+#endif /* _DEBUG */
 
 		/* Change lexer stage if needed. */
 		if (*start == '\n') {
