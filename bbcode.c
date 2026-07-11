@@ -256,7 +256,8 @@ char** parse_tag(atom_t *atom, char **tokens) {
  * @param tokens Tokens list.
  * @param next   Pointer to where the next token to be parsed.
  *
- * @return Parsed a dynamically allocated atom object.
+ * @return Parsed a dynamically allocated atom object. NULL if a token to be
+ *         ignored was parsed.
  */
 atom_t* parse_atom(char **tokens, char ***next) {
 	atom_t *atom;
@@ -273,10 +274,13 @@ atom_t* parse_atom(char **tokens, char ***next) {
 		break;
 	case ']':
 		/* Closing brace of tag. */
-		if ((last_type == ATOM_TAG_OPEN) || (last_type == ATOM_TAG_CLOSE)) {
+		if (last_type >= ATOM_TAG_OPEN) {
+			/* Ignore this token. */
 			free(*tokens);
 			*tokens = NULL;
 			*next = tokens + 1;
+			free(atom);
+			atom = NULL;
 			return NULL;
 		}
 		goto text_atom;
