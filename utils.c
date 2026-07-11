@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <ctype.h>
 
 /**
  * Checks if a character (ch) is contained in a list of characters (chars).
@@ -94,4 +95,21 @@ int strcatdelim_alloc(char **buf, const char *start, const char *end) {
 
 	/* Actually perform the concatenation and return. */
 	return strcatdelim(*buf, start, end);
+}
+
+/**
+ * Portable case insensitive string comparison.
+ * Source: https://stackoverflow.com/a/5820991
+ *
+ * @param a String to be compared.
+ * @param b String to be compared.
+ *
+ * @return Same as strcmp.
+ */
+int strcmpci(char const *a, char const *b) {
+	for (;; a++, b++) {
+		int d = tolower((unsigned char)*a) - tolower((unsigned char)*b);
+		if (d != 0 || !*a)
+			return d;
+	}
 }
