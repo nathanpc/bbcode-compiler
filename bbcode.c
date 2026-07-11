@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <ctype.h>
 
 #include "utils.h"
 
@@ -28,7 +29,7 @@ typedef enum lexer_stage_e {
  */
 typedef enum atom_type_e {
 	ATOM_RAW = 0,
-	ATOM_PRE,
+	ATOM_PREFMT,
 	ATOM_LINEBREAK,
 	ATOM_TAG_OPEN,
 	ATOM_TAG_ARG,
@@ -48,6 +49,7 @@ int lex(const char *str, const char **start, const char **end);
 char** lexer(const char *code);
 atom_t* parse_atom(char **tokens, char ***next);
 char** parse_tag(atom_t *atom, char **tokens);
+char** parse_prefmt(atom_t *atom, char **tokens);
 void atom_free(atom_t *atom);
 void atom_print(const atom_t *atom);
 
@@ -244,9 +246,29 @@ int lex(const char *str, const char **start, const char **end) {
 atom_t* parse_atom(char **tokens, char ***next) {
 	atom_t *atom;
 	static atom_type_t last_type;
+	static int prefmt_stat;
 
+	/* Create atom object. */
 	atom = malloc(sizeof(atom_t));
+	atom->type = -1;
 	atom->value = NULL;
+
+	/* Deal with code/preformatted sections. */
+	if (prefmt_stat == 1) {
+		/* Parse the preformatted section atom. */
+		atom->type = ATOM_PREFMT;
+		*next = parse_prefmt(atom, tokens);
+		prefmt_stat = -1;
+		goto store_atom;
+	} else if (prefmt_stat == -1) {
+		/* Close the code tag that was gobbled while parsing the section. */
+		atom->type = ATOM_TAG_CLOSE;
+		atom->value = strdup("CODE");
+		prefmt_stat = 0;
+		goto store_atom;
+	}
+
+	/* Parse atom based on the first character of the current token. */
 	switch (**tokens) {
 	case '[':
 		/* Tag */
@@ -307,6 +329,21 @@ atom_t* parse_atom(char **tokens, char ***next) {
 		break;
 	}
 
+	/* Determine if we are about to parse a preformatted section. */
+	if ((atom->type == ATOM_TAG_OPEN) && !strcmp(atom->value, "CODE")) {
+		/* Ignore closing brace of code tag. */
+		free(**next);
+		**next = NULL;
+		*next = *next + 1;
+
+		/* Mark the beginning of a preformatted section. */
+		prefmt_stat = 1;
+	} else {
+		prefmt_stat = 0;
+	}
+
+store_atom:
+	/* Store the last atom type. */
 	last_type = atom->type;
 	return atom;
 }
@@ -320,8 +357,11 @@ atom_t* parse_atom(char **tokens, char ***next) {
  * @return Position of the next token after the atom.
  */
 char** parse_tag(atom_t *atom, char **tokens) {
-	char **next = tokens;
+	char *tmp;
+	char **next;
 
+	/* Check if we are closing or opening a tag. */
+	next = tokens;
 	if (**next == '/') {
 		atom->type = ATOM_TAG_CLOSE;
 		free(*next);
@@ -333,12 +373,94 @@ char** parse_tag(atom_t *atom, char **tokens) {
 
 	/* Extract value and normalize tag value. */
 	atom->value = *next;
-	/* TODO: Make value uppercase. */
 	next++;
+	tmp = atom->value;
+	while (*tmp) {
+		*tmp = toupper((unsigned char)*tmp);
+		tmp++;
+	}
 
 	return next;
 }
 
+/**
+ * Parses an entire preformatted section of tokens.
+ *
+ * @param atom   Atom object to be populated.
+ * @param tokens Tokens list to be used.
+ *
+ * @return Position of the next token after the atom.
+ */
+char** parse_prefmt(atom_t *atom, char **tokens) {
+	int close_seq;
+	char **next;
+	size_t len;
+	
+	/* Prepare the atom's value to be populated. */
+	atom->value = malloc(sizeof(char));
+	*atom->value = '\0';
+	len = 1;
+
+	/* Join all tokens until we reach the '[', '/', "code", ']' sequence. */
+	close_seq = 0;
+	next = tokens;
+	while (close_seq < 4) {
+		/* Store place of NUL terminator to shortcircuit concatenation. */
+		char *cur = atom->value + len - 1;
+
+		switch (close_seq) {
+		case 0:
+			/* Looking for '['. */
+			if (**next == '[') {
+				close_seq++;
+			} else {
+				close_seq = 0;
+			}
+			break;
+		case 1:
+			/* Looking for '/'. */
+			if (**next == '/') {
+				close_seq++;
+			} else {
+				close_seq = 0;
+			}
+			break;
+		case 2:
+			/* Looking for "code". */
+			if (!strcmpci(*next, "code")) {
+				close_seq++;
+			} else {
+				close_seq = 0;
+			}
+			break;
+		case 3:
+			/* Looking for ']'. */
+			if (**next == ']') {
+				close_seq++;
+			} else {
+				close_seq = 0;
+			}
+			break;
+		}
+
+		/* Append token to value. */
+		len += strlen(*next);
+		atom->value = realloc(atom->value, len * sizeof(char));
+		strcat(cur, *next);
+		
+		/* Discard token and move to the next one. */
+		free(*next);
+		*next = NULL;
+		next++;
+	}
+
+	/* Remove the "[/code]" from the end of the preformatted section */
+	len -= 7;
+	atom->value[len - 1] = '\0';
+	atom->value = realloc(atom->value, len * sizeof(char));
+
+	return next;
+}
 
 /**
  * Frees up any resources taken by an atom object.
@@ -369,7 +491,7 @@ void atom_print(const atom_t *atom) {
 	case ATOM_RAW:
 		printf("TEXT");
 		break;
-	case ATOM_PRE:
+	case ATOM_PREFMT:
 		printf("PREFMT");
 		break;
 	case ATOM_LINEBREAK:
