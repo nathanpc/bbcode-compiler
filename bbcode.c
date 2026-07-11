@@ -29,6 +29,7 @@ typedef enum lexer_stage_e {
 typedef enum atom_type_e {
 	ATOM_RAW = 0,
 	ATOM_PRE,
+	ATOM_LINEBREAK,
 	ATOM_TAG_OPEN,
 	ATOM_TAG_ARG,
 	ATOM_TAG_CLOSE
@@ -285,11 +286,23 @@ atom_t* parse_atom(char **tokens, char ***next) {
 
 		/* Regular text atom that starts with an equal sign. */
 		goto text_atom;
+	case '\n':
+		/* Linebreak */
+		atom->type = ATOM_LINEBREAK;
+		atom->value = NULL;
+
+		/* Ignore the current token and jump to the next one. */
+		free(*tokens);
+		*tokens = NULL;
+		*next = tokens + 1;
+		break;
 	default:
 		/* Text */
 		text_atom:
 		atom->type = ATOM_RAW;
 		atom->value = *tokens;
+
+		/* Jump to the next token. */
 		*next = tokens + 1;
 		break;
 	}
@@ -358,6 +371,9 @@ void atom_print(const atom_t *atom) {
 		break;
 	case ATOM_PRE:
 		printf("PREFMT");
+		break;
+	case ATOM_LINEBREAK:
+		printf("NEWLINE");
 		break;
 	case ATOM_TAG_OPEN:
 		printf("TAG_OPEN");
