@@ -512,12 +512,14 @@ void atom_print(const atom_t *atom) {
 	putchar('\t');
 
 	/* Value */
+	if (atom->type == ATOM_PREFMT)
+		putchar('"');
 #ifdef _DEBUG
-	putchar('"');
-#endif
 	printf("%s", atom->value);
-#ifdef _DEBUG
-	putchar('"');
-#endif
+#else
+	printf("%s", (atom->value == NULL) ? "" : atom->value);
+#endif /* _DEBUG */
+	if (atom->type == ATOM_PREFMT)
+		printf("\"\tPREFMT");
 	putchar('\n');
 }
