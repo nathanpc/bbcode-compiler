@@ -46,6 +46,7 @@ typedef struct atom_s {
 int lex(const char *str, const char **start, const char **end);
 char** lexer(const char *code);
 atom_t* parse_atom(char **tokens, char ***next);
+char** parse_tag(atom_t *atom, char **tokens);
 void atom_free(atom_t *atom);
 void atom_print(const atom_t *atom);
 
@@ -228,26 +229,6 @@ int lex(const char *str, const char **start, const char **end) {
 	return *end - *start;
 }
 
-char** parse_tag(atom_t *atom, char **tokens) {
-	char **next = tokens;
-
-	if (**next == '/') {
-		atom->type = ATOM_TAG_CLOSE;
-		free(*next);
-		*next = NULL;
-		next++;
-	} else {
-		atom->type = ATOM_TAG_OPEN;
-	}
-
-	/* Extract value and normalize tag value. */
-	atom->value = *next;
-	/* TODO: Make value lowercase. */
-	next++;
-
-	return next;
-}
-
 /**
  * Parses the next atom from the tokens list.
  *
@@ -283,16 +264,26 @@ atom_t* parse_atom(char **tokens, char ***next) {
 			atom = NULL;
 			return NULL;
 		}
+
+		/* Regular text atom that starts with an closing brace. */
 		goto text_atom;
 	case '=':
+		/* Tag argument if last token was a tag open. */
 		if (last_type == ATOM_TAG_OPEN) {
+			/* Change atom type and ignore token. */
 			atom->type = ATOM_TAG_ARG;
 			free(*tokens);
 			*tokens = NULL;
+
+			/* Use next token as the atom's value. */
 			atom->value = *(tokens + 1);
+
+			/* Jump ahead of the value token. */
 			*next = tokens + 2;
 			break;
 		}
+
+		/* Regular text atom that starts with an equal sign. */
 		goto text_atom;
 	default:
 		/* Text */
@@ -306,6 +297,35 @@ atom_t* parse_atom(char **tokens, char ***next) {
 	last_type = atom->type;
 	return atom;
 }
+
+/**
+ * Parses an opening or closing of a tag.
+ *
+ * @param atom   Atom object to be populated.
+ * @param tokens Tokens list to be used.
+ *
+ * @return Position of the next token after the atom.
+ */
+char** parse_tag(atom_t *atom, char **tokens) {
+	char **next = tokens;
+
+	if (**next == '/') {
+		atom->type = ATOM_TAG_CLOSE;
+		free(*next);
+		*next = NULL;
+		next++;
+	} else {
+		atom->type = ATOM_TAG_OPEN;
+	}
+
+	/* Extract value and normalize tag value. */
+	atom->value = *next;
+	/* TODO: Make value uppercase. */
+	next++;
+
+	return next;
+}
+
 
 /**
  * Frees up any resources taken by an atom object.
