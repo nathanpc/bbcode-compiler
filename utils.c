@@ -113,3 +113,25 @@ int strcmpci(char const *a, char const *b) {
 			return d;
 	}
 }
+
+/**
+ * Copies a string into another until a specific character (non-inclusive), or
+ * if the character is not found, copies the entire string.
+ *
+ * @param dest Destination string to write to.
+ * @param src  Source string to copy characters from.
+ * @param ch   Limiting character (non-inclusive).
+ *
+ * @return Pointer in src where the delimiter was found.
+ */
+const char* strcpyu(char *dest, const char *src, char ch) {
+	const char *sc;
+	char *dc;
+
+	/* Copy characters over until the delimiter or the end of the string. */
+	for (dc = dest, sc = src; (*sc != ch) && (*sc != '\0'); dc++, sc++)
+		*dc = *sc;
+	*dc = '\0';
+	
+	return sc;
+}
