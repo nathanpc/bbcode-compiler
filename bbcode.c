@@ -11,6 +11,7 @@
 #include <string.h>
 #include <ctype.h>
 
+#include "atom.h"
 #include "utils.h"
 
 /**
@@ -24,34 +25,12 @@ typedef enum lexer_stage_e {
 	LEXER_OUTTAG
 } lexer_stage_t;
 
-/**
- * Types of atoms.
- */
-typedef enum atom_type_e {
-	ATOM_RAW = 0,
-	ATOM_PREFMT,
-	ATOM_LINEBREAK,
-	ATOM_TAG_OPEN,
-	ATOM_TAG_ARG,
-	ATOM_TAG_CLOSE
-} atom_type_t;
-
-/**
- * Atom object definition.
- */
-typedef struct atom_s {
-	atom_type_t type;
-	char *value;
-} atom_t;
-
 /* Function prototypes. */
 int lex(const char *str, const char **start, const char **end);
 char** lexer(const char *code);
 atom_t* parse_atom(char **tokens, char ***next);
 char** parse_tag(atom_t *atom, char **tokens);
 char** parse_prefmt(atom_t *atom, char **tokens);
-void atom_free(atom_t *atom);
-void atom_print(const atom_t *atom);
 
 /**
  * Application's main entry point.
@@ -235,9 +214,7 @@ atom_t* parse_atom(char **tokens, char ***next) {
 	static int prefmt_stat;
 
 	/* Create atom object. */
-	atom = malloc(sizeof(atom_t));
-	atom->type = -1;
-	atom->value = NULL;
+	atom = atom_new(-1);
 
 	/* Deal with code/preformatted sections. */
 	if (prefmt_stat == 1) {
@@ -446,66 +423,4 @@ char** parse_prefmt(atom_t *atom, char **tokens) {
 	atom->value = realloc(atom->value, len * sizeof(char));
 
 	return next;
-}
-
-/**
- * Frees up any resources taken by an atom object.
- *
- * @param atom Atom object to be completely freed.
- */
-void atom_free(atom_t *atom) {
-	/* Invalidate type and free value string. */
-	atom->type = -1;
-	if (atom->value) {
-		free(atom->value);
-		atom->value = NULL;
-	}
-
-	/* Free the atom object itself. */
-	free(atom);
-}
-
-/**
- * Prints out the contents of an atom in the format of an intermediate output
- * language for formatters to use.
- *
- * @param atom Atom to be printed out.
- */
-void atom_print(const atom_t *atom) {
-	/* Type */
-	switch (atom->type) {
-	case ATOM_RAW:
-		printf("TEXT");
-		break;
-	case ATOM_PREFMT:
-		printf("PREFMT");
-		break;
-	case ATOM_LINEBREAK:
-		printf("NEWLINE");
-		break;
-	case ATOM_TAG_OPEN:
-		printf("TAG_OPEN");
-		break;
-	case ATOM_TAG_ARG:
-		printf("TAG_ARG");
-		break;
-	case ATOM_TAG_CLOSE:
-		printf("TAG_CLOSE");
-		break;
-	default:
-		printf("UNKNOWN");
-	}
-	putchar('\t');
-
-	/* Value */
-	if (atom->type == ATOM_PREFMT)
-		putchar('"');
-#ifdef _DEBUG
-	printf("%s", atom->value);
-#else
-	printf("%s", (atom->value == NULL) ? "" : atom->value);
-#endif /* _DEBUG */
-	if (atom->type == ATOM_PREFMT)
-		printf("\"\tPREFMT");
-	putchar('\n');
 }

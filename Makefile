@@ -3,7 +3,7 @@ PLATFORM := $(shell uname -s)
 
 # Paths
 BUILDDIR := build
-SOURCES  := utils.c bbcode.c
+SOURCES  := utils.c atom.c
 OBJECTS  := $(patsubst %.c, $(BUILDDIR)/%.o, $(SOURCES))
 TARGETS  := $(OBJECTS) $(BUILDDIR)/bbcode
 
