@@ -30,6 +30,9 @@ typedef struct atom_s {
 
 atom_t* atom_new(atom_type_t type);
 void atom_free(atom_t *atom);
+int atom_parse_line(atom_t *atom, const char *line);
+int atom_parse_continue(atom_t *atom, const char *line);
+atom_type_t atom_type_fromstr(const char *str);
 void atom_print(const atom_t *atom);
 
 #endif /* _BBCODE_ATOM_H */

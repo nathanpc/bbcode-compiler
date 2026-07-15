@@ -19,6 +19,9 @@
 */
 #define TYPE_STR_MAX 15
 
+/* Private functions. */
+int has_prefmt_suffix(const char *str);
+
 /**
  * Allocates a brand new atom object.
  *
@@ -52,6 +55,133 @@ void atom_free(atom_t *atom) {
 
 	/* Free the atom object itself. */
 	free(atom);
+}
+
+/**
+ * Parses an atom from a line of compiled BBCode intermediate language.
+ *
+ * @param atom Atom object to be populated.
+ * @param line Line of compiled BBCode.
+ *
+ * @return 0 if the parsing was successful. 1 if we need to keep parsing on the
+ *         next line. -1 if an error occurred.
+ */
+int atom_parse_line(atom_t *atom, const char *line) {
+	char type[TYPE_STR_MAX];
+	const char *cursor;
+
+	/* Extract the atom type. */
+	cursor = strcpyu(type, line, '\t');
+	if (*cursor == '\0') {
+		fprintf(stderr, "error: failed to extract atom type.\n");
+		return -1;
+	}
+	atom->type = atom_type_fromstr(type);
+	cursor++;  /* Move past the delimiter. */
+
+	/* Skip double quote in case of a preformatted section. */
+	if (atom->type == ATOM_PREFMT)
+		cursor++;
+
+	/* Allocate enough space for our atom value. */
+	if (atom->value == NULL) {
+		atom->value = malloc((strlen(cursor) + 1) * sizeof(char));
+	} else {
+		atom->value = realloc(atom->value, (strlen(cursor) + 1) * sizeof(char));
+	}
+
+	/* Copy our atom's value. */
+	strcpy(atom->value, cursor);
+
+	/* Ensure we don't have a single line preformatted section. */
+	if (atom->type == ATOM_PREFMT) {
+		size_t lenv;
+		int lensfx;
+
+		lenv = strlen(atom->value);
+		lensfx = has_prefmt_suffix(atom->value);
+		if (lensfx) {
+			/* Single line preformatted section. */
+			atom->value[lenv - lensfx] = '\0';
+		} else {
+			/* Preformatted section continues, thus add a NL to the value. */
+			atom->value = realloc(atom->value, (lenv + 2) * sizeof(char));
+			atom->value[lenv] = '\n';
+			atom->value[lenv + 1] = '\0';
+			return 1;
+		}
+	}
+
+	return 0;
+}
+
+/**
+ * Continue parsing an atom from a line of compiled BBCode intermediate
+ * language.
+ *
+ * @param atom Atom object to be populated.
+ * @param line Line of compiled BBCode.
+ *
+ * @return 0 if the parsing was successful and no longer need to continue. 1 if
+ *         we need to keep parsing on the next line. -1 if an error occurred.
+ */
+int atom_parse_continue(atom_t *atom, const char *line) {
+	if (atom->type == ATOM_PREFMT) {
+		size_t lenv;
+		size_t lenl;
+		int lens;
+
+		/* Allocate space for our string to grow. */
+		lenv = strlen(atom->value);
+		lenl = strlen(line);
+		atom->value = realloc(atom->value, (lenv + lenl + 1) * sizeof(char));
+
+		/* Append our line to the value. */
+		strcat(atom->value, line);
+		lens = has_prefmt_suffix(line);
+		lenv += lenl;
+		if (lens) {
+			/* Preformatted section has ended here. */
+			atom->value[lenv - lens] = '\0';
+			return 0;
+		} else {
+			/* Preformatted section continues on the next line. */
+			atom->value = realloc(atom->value, (lenv + 2) * sizeof(char));
+			atom->value[lenv] = '\n';
+			atom->value[lenv + 1] = '\0';
+		}
+
+		return 1;
+	}
+
+	/* I don't know what to do with this... */
+	fprintf(stderr, "error: unknown atom type to keep parsing on next line.\n");
+	return -1;
+}
+
+/**
+ * Determines an atom type from its compiled string representation.
+ *
+ * @param str Atom type as a compiled BBCode string.
+ *
+ * @return Atom type.
+ */
+atom_type_t atom_type_fromstr(const char *str) {
+	if (!strcmp(str, "TEXT")) {
+		return ATOM_RAW;
+	} else if (!strcmp(str, "PREFMT")) {
+		return ATOM_PREFMT;
+	} else if (!strcmp(str, "NEWLINE")) {
+		return ATOM_LINEBREAK;
+	} else if (!strcmp(str, "TAG_OPEN")) {
+		return ATOM_TAG_OPEN;
+	} else if (!strcmp(str, "TAG_ARG")) {
+		return ATOM_TAG_ARG;
+	} else if (!strcmp(str, "TAG_CLOSE")) {
+		return ATOM_TAG_CLOSE;
+	}
+
+	return -1;
 }
 
 /**
@@ -97,4 +227,19 @@ void atom_print(const atom_t *atom) {
 	if (atom->type == ATOM_PREFMT)
 		printf("\"\tPREFMT");
 	putchar('\n');
+}
+
+/**
+ * Checks if a string ends with the compiled BBCode preformatted section ending.
+ *
+ * @param String to be tested for the preformatted section ending.
+ *
+ * @return The number of bytes to trim from the string if the preformatted
+ *         section ending. 0 if no valid suffix was found.
+ */
+int has_prefmt_suffix(const char *str) {
+	if (!strcmpe(str, "\"\tPREFMT"))
+		return 8;
+
+	return 0;
 }
