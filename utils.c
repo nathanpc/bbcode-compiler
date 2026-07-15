@@ -135,3 +135,22 @@ const char* strcpyu(char *dest, const char *src, char ch) {
 	
 	return sc;
 }
+
+/**
+ * Compares the ends of two strings.
+ * Source: https://stackoverflow.com/a/744822
+ *
+ * @param str    String to be compared.
+ * @param suffix Suffix to find in string.
+ *
+ * @return Same as strcmp.
+ */
+int strcmpe(const char *str, const char *suffix) {
+	if (!str || !suffix)
+		return 0;
+	size_t lenstr = strlen(str);
+	size_t lensuffix = strlen(suffix);
+	if (lensuffix >  lenstr)
+		return 0;
+	return strncmp(str + lenstr - lensuffix, suffix, lensuffix);
+}
