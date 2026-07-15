@@ -1,3 +1,6 @@
+# Example and test files.
+*.bbt
+
 # Object and executable files.
 build/
 *.obj
