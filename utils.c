@@ -43,11 +43,12 @@ int chrchr(char ch, const char *chars) {
  * @return Final size of the string.
  */
 int strcatdelim(char *buf, const char *start, const char *end) {
-	int len;
+	size_t len;
 	char *cbuf;
 	const char *cdelim;
 
 	/* Skips the original string and position the cursor at NUL. */
+	len = 0;
 	for (cbuf = buf; *cbuf != '\0'; cbuf++)
 		len++;
 
