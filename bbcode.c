@@ -369,7 +369,7 @@ char** parse_prefmt(atom_t *atom, char **tokens) {
 	next = tokens;
 	while (close_seq < 4) {
 		/* Store place of NUL terminator to shortcircuit concatenation. */
-		char *cur = atom->value + len - 1;
+		size_t lenv = len - 1;
 
 		switch (close_seq) {
 		case 0:
@@ -409,8 +409,8 @@ char** parse_prefmt(atom_t *atom, char **tokens) {
 		/* Append token to value. */
 		len += strlen(*next);
 		atom->value = realloc(atom->value, len * sizeof(char));
-		strcat(cur, *next);
-		
+		strcat(atom->value + lenv, *next);
+
 		/* Discard token and move to the next one. */
 		free(*next);
 		*next = NULL;
