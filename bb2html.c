@@ -26,6 +26,7 @@ int main(int argc, char **argv) {
 	atom_t atom;
 	int ret;
 
+	ret = 0;
 	atom.value = NULL;
 	while (fgets(line, sizeof(line), stdin)) {
 		char *buf;
