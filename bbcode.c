@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <limits.h>
 #include <ctype.h>
 
 #include "atom.h"
@@ -41,16 +42,30 @@ char** parse_prefmt(atom_t *atom, char **tokens);
  * @return Return code.
  */
 int main(int argc, char **argv) {
-	char *code = "This is an example of [b]BBCode[/b]!\n\nIt's very simple, "
-		"[url=https://nathancampos.me/assets/images/http-status/404.jpg]but "
-		"it's honest work[/url].\n\n[code]This is [b]BBCode[/b] that\nis "
-		"ignored. Hopefully [this= is does not break things.[/code]\n\nThis "
-		"is something/somewhere, and 2+2=4.";
+	char *code;
+	char *line;
+	size_t len;
 	char **tokens;
 	char **cur;
 
-	/* Pass the BBCode through the lexer and extract tokens. */
+	/* Read entire file into memory so that it can be tokenized later. */
+	line = malloc(LINE_MAX * sizeof(char));
+	code = malloc(LINE_MAX * sizeof(char));
+	*code = '\0';
+	len = 0;
+	while (fgets(line, sizeof(line), stdin)) {
+		size_t linelen = strlen(line);
+		code = realloc(code, (len + linelen + 1) * sizeof(char));
+		strcat(code + len, line);
+		len += linelen;
+	}
+
+	/* Pass BBCode through the lexer to extract tokens, then free resources. */
+	free(line);
 	tokens = lexer(code);
+	free(code);
+	line = NULL;
+	code = NULL;
 
 	/* Parse atoms and print them out. */
 	cur = tokens;
