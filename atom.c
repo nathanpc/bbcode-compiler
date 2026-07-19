@@ -46,6 +46,10 @@ atom_t* atom_new(atom_type_t type) {
  * @param atom Atom object to be completely freed.
  */
 void atom_free(atom_t *atom) {
+	/* Do we even need to do anything? */
+	if (atom == NULL)
+		return;
+
 	/* Invalidate type and free value string. */
 	atom->type = -1;
 	if (atom->value) {
@@ -185,6 +189,25 @@ atom_type_t atom_type_fromstr(const char *str) {
 }
 
 /**
+ * Checks if a TAG_OPEN atom is of a type which may contain a subsequent
+ * argument atom.
+ *
+ * @param atom Atom object of type TAG_OPEN to be checked.
+ *
+ * @return TRUE if the tag is one that may contain arguments. FALSE if it is a
+ *         tag that never has arguments.
+ */
+int atom_args_maybe(const atom_t *atom) {
+	const char *v;
+	if ((atom->type != ATOM_TAG_OPEN) && (atom->type != ATOM_TAG_CLOSE))
+		return 0;
+
+	v = atom->value;
+	return !strcmp(v, "URL") || !strcmp(v, "IMG") || !strcmp(v, "CODE") ||
+		!strcmp(v, "QUOTE") || !strcmp(v, "COLOR");
+}
+
+/**
  * Prints out the contents of an atom in the format of an intermediate output
  * language for formatters to use.
  *
@@ -242,4 +265,64 @@ int has_prefmt_suffix(const char *str) {
 		return 8;
 
 	return 0;
+}
+
+/**
+ * Allocates a brand new atom group object.
+ *
+ * @return Brand new atom group object that must be freed using atom_group_free.
+ */
+atom_group_t* atom_group_new(void) {
+	atom_group_t *atoms = malloc(sizeof(atom_group_t));
+	atoms->group = NULL;
+	atoms->len = 0;
+	return atoms;
+}
+
+/**
+ * Frees up any resources created by an atom group object, including itself and
+ * all atom objects inside it.
+ *
+ * @param atoms Atom group object to be freed.
+ */
+void atom_group_free(atom_group_t *atoms) {
+	/* Do we even need to do anything? */
+	if (atoms == NULL)
+		return;
+
+	/* Go through group freeing all atoms and itself. */
+	if (atoms->group) {
+		int i;
+		for (i = 0; i < atoms->len; i++) {
+			atom_free(atoms->group[i]);
+			atoms->group[i] = NULL;
+		}
+
+		free(atoms->group);
+		atoms->group = NULL;
+	}
+
+	/* Free ourselves. */
+	atoms->len = 0;
+	free(atoms);
+}
+
+/**
+ * Appends a new atom to a group.
+ *
+ * @param atoms Atom group object to receive the new atom.
+ * @param atom  Atom object to be added to the end of the group.
+ *
+ * @return Total number of atoms in the group.
+ */
+int atom_group_append(atom_group_t *atoms, atom_t *atom) {
+	if (atoms->len == 0) {
+		atoms->group = malloc(sizeof(atom_t*));
+	} else {
+		atoms->group = realloc(atoms->group, (atoms->len + 1) *
+			sizeof(atom_t*));
+	}
+
+	atoms->group[atoms->len++] = atom;
+	return atoms->len;
 }
