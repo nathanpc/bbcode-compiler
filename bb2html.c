@@ -69,7 +69,8 @@ int main(int argc, char **argv) {
 		/* Deal with tags that may span more than a single atom. */
 		switch (atom->type) {
 		case ATOM_TAG_OPEN:
-			if (!atom_args_maybe(atom))
+			/* Check if this is a tag that doesn't need to be grouped. */
+			if (atomsgrp || (!atom_args_maybe(atom) && (*atom->value != '*')))
 				goto handle_atom;
 
 			atomsgrp = atom_group_new();
@@ -84,10 +85,27 @@ int main(int argc, char **argv) {
 			atom_group_append(atomsgrp, atom);
 			atom = NULL;
 			break;
-handle_atom:
 		default:
+handle_atom:
 			/* Handle previous atom group first if one exists. */
 			if (atomsgrp) {
+				atom_t *first = *atomsgrp->group;
+
+				/* Check if we are dealing with a list item. */
+				if ((first->type == ATOM_TAG_OPEN) && (*first->value == '*')) {
+					/* Add any atoms to the group until we reach a linebreak. */
+					if (atom->type != ATOM_LINEBREAK) {
+						atom_group_append(atomsgrp, atom);
+						atom = NULL;
+						break;
+					}
+
+					/* Convert linebreak into tag close for list item. */
+					atom->type = ATOM_TAG_CLOSE;
+					free(atom->value);
+					atom->value = strdup("*");
+				}
+
 				print_tag_group(atomsgrp);
 				atom_group_free(atomsgrp);
 				atomsgrp = NULL;
@@ -119,7 +137,7 @@ finish:
 void print_tag(const atom_t *atom, int close) {
 	if ((atom->type == ATOM_RAW) || (atom->type == ATOM_PREFMT)) {
 		/* Regular text and preformatted sections. */
-		printf(atom->value);
+		printf("%s", atom->value);
 	} else if (atom->type == ATOM_LINEBREAK) {
 		/* Linebreak */
 		printf("<br>\n");
@@ -171,6 +189,12 @@ void print_tag(const atom_t *atom, int close) {
 			printf("span");
 		} else if (!strcmp(v, "TABLE")) {
 			printf("table");
+		} else if (!strcmp(v, "*")) {
+			printf("li");
+		} else if (!strcmp(v, "LIST")) {
+			printf("ul");
+		} else if (!strcmp(v, "OLIST")) {
+			printf("ol");
 		} else if (!strcmp(v, "TR")) {
 			printf("tr");
 		} else if (!strcmp(v, "TH")) {
@@ -220,22 +244,24 @@ void print_tag_arg(const atom_t *tag, const atom_t *arg) {
  */
 void print_tag_group(const atom_group_t *atoms) {
 	int i;
-
-	/* Print the tag. */
-	print_tag(atoms->group[0], 0);
-
-	/* Print out any arguments. */
-	for (i = 1; i < atoms->len; i++) {
-		/* Check if the atom is actually an argument. */
-		if (atoms->group[i]->type != ATOM_TAG_ARG) {
-			fprintf(stderr, "error: item #%d in atom group not argument.\n", i);
-			return;
+	for (i = 0; i < atoms->len; i++) {
+		/* Print tag and its possible argument. */
+		if (atoms->group[i]->type == ATOM_TAG_OPEN) {
+			int j = 0;
+			print_tag(atoms->group[i], 0);
+			while ((i + j + 1) < atoms->len) {
+				if (atoms->group[i + j + 1]->type == ATOM_TAG_ARG) {
+					print_tag_arg(atoms->group[i], atoms->group[i + j + 1]);
+					j++;
+				} else {
+					if (j > 0)
+						i += j + 1;
+					break;
+				}
+			}
+			putchar('>');
+		} else {
+			print_tag(atoms->group[i], 1);
 		}
-
-		/* Print the tag argument. */
-		print_tag_arg(atoms->group[0], atoms->group[i]);
 	}
-
-	/* Close the tag. */
-	putchar('>');
 }
