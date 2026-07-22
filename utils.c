@@ -148,10 +148,10 @@ const char* strcpyu(char *dest, const char *src, char ch) {
  */
 int strcmpe(const char *str, const char *suffix) {
 	if (!str || !suffix)
-		return 0;
+		return -1;
 	size_t lenstr = strlen(str);
 	size_t lensuffix = strlen(suffix);
 	if (lensuffix >  lenstr)
-		return 0;
+		return -1;
 	return strncmp(str + lenstr - lensuffix, suffix, lensuffix);
 }
