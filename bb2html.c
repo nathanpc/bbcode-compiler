@@ -201,6 +201,9 @@ void print_tag(const atom_t *atom, int close) {
 			printf("th");
 		} else if (!strcmp(v, "TD")) {
 			printf("td");
+		} else {
+			fprintf(stderr, "warning: unknown tag %s\n", v);
+			printf("%s", v);
 		}
 
 		/* Close the tag brace. */
