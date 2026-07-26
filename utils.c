@@ -159,3 +159,24 @@ int strcmpe(const char *str, const char *suffix) {
 
 	return strncmp(str + lenstr - lensuffix, suffix, lensuffix);
 }
+
+/**
+ * Prints a string until a definite point in itself.
+ *
+ * @param str       Begining of the string to be printed.
+ * @param until     Point in the string to stop printing.
+ * @param inclusive Point at until should also be printed out?
+ */
+void print_until(const char *str, const char *until, int inclusive) {
+	const char *buf = str;
+
+	/* Print the string character by character until the delimiter. */
+	while (buf != until) {
+		putchar(*buf);
+		buf++;
+	}
+
+	/* Include the last character? */
+	if (inclusive && (*buf != '\0'))
+		putchar(*buf);
+}
