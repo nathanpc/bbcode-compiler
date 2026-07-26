@@ -17,6 +17,7 @@
 void print_tag(const atom_t *atom, int close);
 void print_tag_arg(const atom_t *tag, const atom_t *arg);
 void print_tag_group(const atom_group_t *atoms);
+void print_image_tag_group(const atom_group_t *atoms);
 int atom_maybe_paragraph(const atom_t *atom);
 
 
@@ -120,10 +121,13 @@ int main(int argc, char **argv) {
 			atom = NULL;
 			break;
 		case ATOM_TAG_ARG:
+			/* Check if we have a valid tag group to append this argument to. */
 			if (atomsgrp == NULL) {
 				fprintf(stderr, "error: atom argument found without group\n");
 				goto finish;
 			}
+
+			/* Append the argument to the current tag group. */
 			atom_group_append(atomsgrp, atom);
 			atom = NULL;
 			break;
@@ -132,31 +136,47 @@ handle_atom:
 			/* Handle previous atom group first if one exists. */
 			if (atomsgrp) {
 				atom_t *first = *atomsgrp->group;
+				if (first->type == ATOM_TAG_OPEN) {
+					/* Check if we are dealing with a list item. */
+					if (*first->value == '*') {
+						/* Add atoms to the group until we reach a linebreak. */
+						if (atom->type != ATOM_LINEBREAK) {
+							atom_group_append(atomsgrp, atom);
+							atom = NULL;
+							break;
+						}
 
-				/* Check if we are dealing with a list item. */
-				if ((first->type == ATOM_TAG_OPEN) && (*first->value == '*')) {
-					/* Add any atoms to the group until we reach a linebreak. */
-					if (atom->type != ATOM_LINEBREAK) {
+						/* Convert linebreak into tag close for list item. */
+						atom->type = ATOM_TAG_CLOSE;
+						free(atom->value);
+						atom->value = strdup("*");
+					} else if (!strcmp(first->value, "IMG")) {
+						/* Append atoms until the image tag closes. */
 						atom_group_append(atomsgrp, atom);
-						atom = NULL;
-						break;
-					}
+						if ((atom->type != ATOM_TAG_CLOSE) &&
+								strcmp(atom->value, "IMG")) {
+							atom = NULL;
+							break;
+						}
 
-					/* Convert linebreak into tag close for list item. */
-					atom->type = ATOM_TAG_CLOSE;
-					free(atom->value);
-					atom->value = strdup("*");
+						/* Ensure that we ignore the last image tag close. */
+						atom = NULL;
+					}
 				}
 
+				/* Print out the entire tag group and move on. */
 				print_tag_group(atomsgrp);
 				atom_group_free(atomsgrp);
 				atomsgrp = NULL;
 			}
 
-			if (atom->type != ATOM_LINEBREAK)
-				print_tag(atom, 1);
-			atom_free(atom);
-			atom = NULL;
+			/* Print the atom and move on. */
+			if (atom) {
+				if (atom->type != ATOM_LINEBREAK)
+					print_tag(atom, 1);
+				atom_free(atom);
+				atom = NULL;
+			}
 			break;
 		}
 	}
@@ -305,6 +325,13 @@ void print_tag_arg(const atom_t *tag, const atom_t *arg) {
  */
 void print_tag_group(const atom_group_t *atoms) {
 	int i;
+
+	/* Deal with the special case of image tags. */
+	if (!strcmp(atoms->group[0]->value, "IMG")) {
+		print_image_tag_group(atoms);
+		return;
+	}
+
 	for (i = 0; i < atoms->len; i++) {
 		/* Print tag and its possible argument. */
 		if (atoms->group[i]->type == ATOM_TAG_OPEN) {
@@ -332,6 +359,30 @@ void print_tag_group(const atom_group_t *atoms) {
 			print_tag(atoms->group[i], 1);
 		}
 	}
+}
+
+/**
+ * Prints out an HTML img tag associated with an atom group.
+ *
+ * @param atoms Atom group object to be converted to an HTML img tag.
+ */
+void print_image_tag_group(const atom_group_t *atoms) {
+	int i;
+
+	/* Open the tag and add the source attribute. */
+	print_tag(atoms->group[0], 0);
+	print_tag_arg(atoms->group[0], atoms->group[1]);
+
+	/* Print the alt text. */
+	if (atoms->len > 3) {
+		printf(" alt=\"");
+		for (i = 2; i < (atoms->len - 1); i++)
+			print_tag(atoms->group[i], 1);
+		putchar('"');
+	}
+
+	/* Close the tag. */
+	printf(" />");
 }
 
 /**
