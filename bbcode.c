@@ -239,7 +239,7 @@ int lex(const char *str, const char **start, const char **end) {
 		*end = str + strcspn(str, delim);
 	}
 
-	return *end - *start;
+	return (int)(*end - *start);
 }
 
 /**

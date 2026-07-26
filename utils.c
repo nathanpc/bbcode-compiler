@@ -8,7 +8,6 @@
 #include "utils.h"
 
 #include <stdlib.h>
-#include <stddef.h>
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
@@ -43,7 +42,7 @@ int chrchr(char ch, const char *chars) {
  *
  * @return Final size of the string.
  */
-int strcatdelim(char *buf, const char *start, const char *end) {
+size_t strcatdelim(char *buf, const char *start, const char *end) {
 	size_t len;
 	char *cbuf;
 	const char *cdelim;
@@ -76,7 +75,7 @@ int strcatdelim(char *buf, const char *start, const char *end) {
  *
  * @return Final size of the string.
  */
-int strcatdelim_alloc(char **buf, const char *start, const char *end) {
+size_t strcatdelim_alloc(char **buf, const char *start, const char *end) {
 	size_t len;
 
 	/* Get the length of the new buffer. */
