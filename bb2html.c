@@ -37,6 +37,9 @@ int main(int argc, char **argv) {
 	int inpara;
 	FILE *stream;
 
+	/* Take a memory snapshot for memory leak detection. */
+	mem_snapshot_start();
+
 	/* Initialize variables. */
 	ret = 0;
 	newlines = 1;
@@ -170,6 +173,9 @@ finish:
 	atomsgrp = NULL;
 	atom_free(atom);
 	atom = NULL;
+
+	/* Check for memory leaks. */
+	mem_snapshot_report();
 
 	return ret;
 }

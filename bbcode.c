@@ -55,6 +55,9 @@ int main(int argc, char **argv) {
 	char **cur;
 	FILE *stream;
 
+	/* Take a memory snapshot for memory leak detection. */
+	mem_snapshot_start();
+
 	/* Check if we should read from a file. */
 	stream = stdin;
 	if (argc > 1) {
@@ -105,6 +108,9 @@ int main(int argc, char **argv) {
 
 	/* Free the tokens list. */
 	free(tokens);
+
+	/* Check for memory leaks. */
+	mem_snapshot_report();
 
 	return 0;
 }

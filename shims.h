@@ -18,4 +18,7 @@
 	#define LINE_MAX 2048
 #endif /* LINE_MAX */
 
+void mem_snapshot_start(void);
+void mem_snapshot_report(void);
+
 #endif /* _BBCODE_SHIMS_H */
