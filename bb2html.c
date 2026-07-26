@@ -293,6 +293,8 @@ void print_tag_arg(const atom_t *tag, const atom_t *arg) {
 		printf("author=\"%s\"", a);
 	} else if (!strcmp(v, "COLOR")) {
 		printf("style=\"color: %s;\"", a);
+	} else {
+		fprintf(stderr, "warning: unknown tag argument %s for tag %s.\n", a, v);
 	}
 }
 
