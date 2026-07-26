@@ -263,7 +263,7 @@ atom_t* parse_atom(char **tokens, char ***next) {
 		break;
 	case ']':
 		/* Closing brace of tag. */
-		if (last_type >= ATOM_TAG_OPEN) {
+		if ((last_type >= ATOM_TAG_OPEN) || (last_type == ATOM_ESCAPED)) {
 			/* Ignore this token. */
 			free(*tokens);
 			*tokens = NULL;
@@ -368,6 +368,10 @@ char** parse_tag(atom_t *atom, char **tokens) {
 		*tmp = toupper((unsigned char)*tmp);
 		tmp++;
 	}
+
+	/* Ignore cases where the user wants to print a bracket. */
+	if (*atom->value == '[')
+		atom->type = ATOM_ESCAPED;
 
 	return next;
 }

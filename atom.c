@@ -217,6 +217,7 @@ void atom_print(const atom_t *atom) {
 	/* Type */
 	switch (atom->type) {
 	case ATOM_RAW:
+	case ATOM_ESCAPED:
 		printf("TEXT");
 		break;
 	case ATOM_PREFMT:
