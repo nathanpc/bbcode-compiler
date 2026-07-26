@@ -8,6 +8,7 @@
 #include "utils.h"
 
 #include <stdlib.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
@@ -147,11 +148,15 @@ const char* strcpyu(char *dest, const char *src, char ch) {
  * @return Same as strcmp.
  */
 int strcmpe(const char *str, const char *suffix) {
+	size_t lenstr;
+	size_t lensuffix;
+
 	if (!str || !suffix)
 		return -1;
-	size_t lenstr = strlen(str);
-	size_t lensuffix = strlen(suffix);
+	lenstr = strlen(str);
+	lensuffix = strlen(suffix);
 	if (lensuffix >  lenstr)
 		return -1;
+
 	return strncmp(str + lenstr - lensuffix, suffix, lensuffix);
 }

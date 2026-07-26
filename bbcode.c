@@ -9,11 +9,11 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <limits.h>
 #include <ctype.h>
 
 #include "atom.h"
 #include "utils.h"
+#include "shims.h"
 
 /**
  * The maximum number of characters, inclusing the NUL terminator, that a tag

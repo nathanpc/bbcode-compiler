@@ -8,10 +8,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <limits.h>
 
 #include "utils.h"
 #include "atom.h"
+#include "shims.h"
 
 /* Private functions. */
 void print_tag(const atom_t *atom, int close);

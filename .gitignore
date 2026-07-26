@@ -24,3 +24,6 @@ Thumbs.db
 # Source Insight
 .bkp/
 *.si4project/
+
+# Visual Studio
+vs/
