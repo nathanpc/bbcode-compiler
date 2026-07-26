@@ -263,7 +263,7 @@ atom_t* parse_atom(char **tokens, char ***next) {
 	atom = atom_new(-1);
 
 	/* Deal with code/preformatted sections. */
-	if (prefmt_stat == 1) {
+	if (prefmt_stat == 2) {
 		/* Parse the preformatted section atom. */
 		atom->type = ATOM_PREFMT;
 		*next = parse_prefmt(atom, tokens);
@@ -342,12 +342,23 @@ atom_t* parse_atom(char **tokens, char ***next) {
 	if ((atom->type == ATOM_TAG_OPEN) && (!strcmp(atom->value, "CODE") ||
 			!strcmp(atom->value, "PRE"))) {
 		/* Ignore closing brace of code tag. */
+		if (***next == ']') {
+			free(**next);
+			**next = NULL;
+			*next = *next + 1;
+
+			/* Mark the beginning of a preformatted section. */
+			prefmt_stat = 2;
+		} else {
+			/* Mark the beginning of an argument for a preformatted section. */
+			prefmt_stat = 1;
+		}
+	} else if (prefmt_stat == 1) {
+		/* Guess we've just finished parsing the argument of a code section. */
 		free(**next);
 		**next = NULL;
 		*next = *next + 1;
-
-		/* Mark the beginning of a preformatted section. */
-		prefmt_stat = 1;
+		prefmt_stat = 2;
 	} else {
 		prefmt_stat = 0;
 	}
