@@ -53,17 +53,35 @@ int main(int argc, char **argv) {
 	size_t len;
 	char **tokens;
 	char **cur;
+	FILE *stream;
+
+	/* Check if we should read from a file. */
+	stream = stdin;
+	if (argc > 1) {
+		stream = fopen(argv[1], "r");
+		if (stream == NULL) {
+			fprintf(stderr, "error: failed to open file '%s' for reading.\n",
+				argv[1]);
+			return 1;
+		}
+	}
 
 	/* Read entire file into memory so that it can be tokenized later. */
 	line = malloc(LINE_MAX * sizeof(char));
 	code = malloc(LINE_MAX * sizeof(char));
 	*code = '\0';
 	len = 0;
-	while (fgets(line, sizeof(line), stdin)) {
+	while (fgets(line, sizeof(line), stream)) {
 		size_t linelen = strlen(line);
 		code = realloc(code, (len + linelen + 1) * sizeof(char));
 		strcat(code + len, line);
 		len += linelen;
+	}
+
+	/* Close the file stream if needed. */
+	if (stream != stdin) {
+		fclose(stream);
+		stream = NULL;
 	}
 
 	/* Pass BBCode through the lexer to extract tokens, then free resources. */

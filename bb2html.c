@@ -35,6 +35,7 @@ int main(int argc, char **argv) {
 	int ret;
 	int newlines;
 	int inpara;
+	FILE *stream;
 
 	/* Initialize variables. */
 	ret = 0;
@@ -42,9 +43,20 @@ int main(int argc, char **argv) {
 	inpara = 0;
 	atom = NULL;
 	atomsgrp = NULL;
+	stream = stdin;
+
+	/* Check if we should read from a file. */
+	if (argc > 1) {
+		stream = fopen(argv[1], "r");
+		if (stream == NULL) {
+			fprintf(stderr, "error: failed to open file '%s' for reading.\n",
+				argv[1]);
+			return 1;
+		}
+	}
 
 	/* Go through input line-by-line. */
-	while (fgets(line, sizeof(line), stdin)) {
+	while (fgets(line, sizeof(line), stream)) {
 		char *buf;
 
 		/* Removing newline from the end of the string. */
@@ -147,6 +159,12 @@ handle_atom:
 	}
 
 finish:
+	/* Close the file stream if needed. */
+	if (stream != stdin) {
+		fclose(stream);
+		stream = NULL;
+	}
+
 	/* Free resources. */
 	atom_group_free(atomsgrp);
 	atomsgrp = NULL;
