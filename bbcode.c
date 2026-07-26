@@ -483,7 +483,11 @@ char** parse_prefmt(atom_t *atom, char **tokens) {
 	}
 
 	/* Remove the "[/code]" from the end of the preformatted section */
-	len -= 7;
+	if (!strcmpci(atom->value + len - 6, "code]")) {
+		len -= 7;
+	} else if (!strcmpci(atom->value + len - 5, "pre]")) {
+		len -= 6;
+	}
 	atom->value[len - 1] = '\0';
 	atom->value = realloc(atom->value, len * sizeof(char));
 
