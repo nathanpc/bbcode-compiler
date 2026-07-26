@@ -24,6 +24,7 @@ void print_link_tag_group(const atom_group_t *atoms);
 void print_image_tag_group(const atom_group_t *atoms);
 void print_header_tag_group(const atom_group_t *atoms);
 void print_quote_tag_group(const atom_group_t *atoms);
+void print_code_tag_group(const atom_group_t *atoms, int indent);
 int should_group_tag(const atom_t *atom);
 
 /* Global variables. */
@@ -275,6 +276,10 @@ void print_tag_group(const atom_group_t *atoms) {
 		print_header_tag_group(atoms);
 	} else if (!strcmp(v, "QUOTE")) {
 		print_quote_tag_group(atoms);
+	} else if (!strcmp(v, "CODE")) {
+		print_code_tag_group(atoms, 1);
+	} else if (!strcmp(v, "PRE")) {
+		print_code_tag_group(atoms, 0);
 	} else if (!strcmp(v, "COLOR")) {
 		for (i = 1; i < atoms->len; i++) {
 			if (atoms->group[i]->type < ATOM_TAG_OPEN)
@@ -393,6 +398,46 @@ void print_quote_tag_group(const atom_group_t *atoms) {
 		printf("\n  -- %s", author);
 
 	*buf = '\0';
+}
+
+/**
+ * Prints out preformatted text associated with an atom group.
+ *
+ * @param atoms  Atom group object to be converted.
+ * @param indent Should we indent the section?
+ */
+void print_code_tag_group(const atom_group_t *atoms, int indent) {
+	const char *lang;
+	int i;
+
+	/* Get the language code if one exists. */
+	lang = NULL;
+	if (atoms->group[1]->type == ATOM_TAG_ARG)
+		lang = atoms->group[1]->value;
+
+	/* Print out the preformatted section with indentation fixed. */
+	for (i = lang ? 2 : 1; i < (atoms->len - 1); i++) {
+		const char *buf = atoms->group[i]->value;
+
+		if (indent)
+			printf("    ");
+		while (*buf != '\0') {
+			if (*buf == '\n') {
+				/* Go to a new line and auto-indent it. */
+				putchar('\n');
+				if (indent)
+					printf("    ");
+			} else if (*buf == '\t') {
+				/* Convert tabs to spaces to ensure it looks consistent. */
+				printf("    ");
+			} else {
+				/* Regular character. */
+				putchar(*buf);
+			}
+
+			buf++;
+		}
+	}
 }
 
 /**
