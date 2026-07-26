@@ -16,6 +16,12 @@
 #include "utils.h"
 
 /**
+ * The maximum number of characters, inclusing the NUL terminator, that a tag
+ * name may contain.
+ */
+#define MAX_TAG_NAME_LEN 15
+
+/**
  * Lexing stages.
  */
 typedef enum lexer_stage_e {
@@ -227,6 +233,7 @@ atom_t* parse_atom(char **tokens, char ***next) {
 	atom_t *atom;
 	static atom_type_t last_type;
 	static int prefmt_stat;
+	static char last_open_tag[MAX_TAG_NAME_LEN];
 
 	/* Create atom object. */
 	atom = atom_new(-1);
@@ -241,7 +248,7 @@ atom_t* parse_atom(char **tokens, char ***next) {
 	} else if (prefmt_stat == -1) {
 		/* Close the code tag that was gobbled while parsing the section. */
 		atom->type = ATOM_TAG_CLOSE;
-		atom->value = strdup("CODE");
+		atom->value = strdup(last_open_tag);
 		prefmt_stat = 0;
 		goto store_atom;
 	}
@@ -308,7 +315,8 @@ atom_t* parse_atom(char **tokens, char ***next) {
 	}
 
 	/* Determine if we are about to parse a preformatted section. */
-	if ((atom->type == ATOM_TAG_OPEN) && !strcmp(atom->value, "CODE")) {
+	if ((atom->type == ATOM_TAG_OPEN) && (!strcmp(atom->value, "CODE") ||
+			!strcmp(atom->value, "PRE"))) {
 		/* Ignore closing brace of code tag. */
 		free(**next);
 		**next = NULL;
@@ -321,8 +329,11 @@ atom_t* parse_atom(char **tokens, char ***next) {
 	}
 
 store_atom:
-	/* Store the last atom type. */
+	/* Store the last atom type and tag open. */
 	last_type = atom->type;
+	if (atom->type == ATOM_TAG_OPEN)
+		strncpy(last_open_tag, atom->value, MAX_TAG_NAME_LEN);
+
 	return atom;
 }
 
@@ -405,7 +416,7 @@ char** parse_prefmt(atom_t *atom, char **tokens) {
 			break;
 		case 2:
 			/* Looking for "code". */
-			if (!strcmpci(*next, "code")) {
+			if (!strcmpci(*next, "code") || !strcmpci(*next, "pre")) {
 				close_seq++;
 			} else {
 				close_seq = 0;
