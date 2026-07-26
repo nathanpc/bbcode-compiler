@@ -171,7 +171,7 @@ But sometimes we need to be very specific about the order of our items, especial
 
 [olist]
   [*]First do this
-  [*]Second thing to do should be this
+  [*]Second [b]thing[/b] to do should be this
   [*]You should be done by now
 [/olist]
 
@@ -198,4 +198,6 @@ Some information is very complex and can only be laid out using a table, thus we
 
 Lastly, but certainly not least, here is a simple test for the lexer and parser to ensure that we don't have any quirks in them and that they can deal with any weird input.
 
-This is something/somewhere, and 2+2=4. Also [[this should be inside brackets]].
+This is something/somewhere, and 2+2=4. Also [[]this should be inside brackets] and [[]this=is clearly not a tag argument.
+
+If this entire document was able to be compiled, we have a working compiler!
