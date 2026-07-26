@@ -19,10 +19,13 @@
 /* Private functions. */
 void print_simple_tag(const atom_t *atom);
 void print_tag_group(const atom_group_t *atoms);
+void print_link_tag_group(const atom_group_t *atoms);
 void print_image_tag_group(const atom_group_t *atoms);
 void print_header_tag_group(const atom_group_t *atoms);
 int should_group_tag(const atom_t *atom);
 
+/* Global variables. */
+static atom_group_t *urls;
 
 /**
  * Application's main entry point.
@@ -47,6 +50,7 @@ int main(int argc, char **argv) {
 	atom = NULL;
 	atomsgrp = NULL;
 	stream = stdin;
+	urls = atom_group_new();
 
 	/* Check if we should read from a file. */
 	if (argc > 1) {
@@ -149,6 +153,12 @@ handle_atom:
 		}
 	}
 
+	/* Print the links in our document. */
+	putchar('\n');
+	for (ret = 0; ret < urls->len; ret++)
+		printf("[%d]: %s\n", ret + 1, urls->group[ret]->value);
+	ret = 0;
+
 finish:
 	/* Close the file stream if needed. */
 	if (stream != stdin) {
@@ -157,6 +167,8 @@ finish:
 	}
 
 	/* Free resources. */
+	atom_group_free(urls);
+	urls = NULL;
 	atom_group_free(atomsgrp);
 	atomsgrp = NULL;
 	atom_free(atom);
@@ -200,10 +212,6 @@ void print_simple_tag(const atom_t *atom) {
 		} else if (!strcmp(v, "PRE")) {
 			printf("pre");
 			printf("h6");
-		} else if (!strcmp(v, "URL")) {
-			putchar('a');
-		} else if (!strcmp(v, "IMG")) {
-			printf("img");
 		} else if (!strcmp(v, "CODE")) {
 		} else if (!strcmp(v, "QUOTE")) {
 		} else if (!strcmp(v, "COLOR")) {
@@ -229,11 +237,13 @@ void print_tag_group(const atom_group_t *atoms) {
 	const char *v = atoms->group[0]->value;
 	int i;
 
-	if (!strcmp(v, "H1") || !strcmp(v, "H2") || !strcmp(v, "H3") ||
+	if (!strcmp(v, "IMG")) {
+		print_image_tag_group(atoms);
+	} else if (!strcmp(v, "URL")) {
+		print_link_tag_group(atoms);
+	} else if (!strcmp(v, "H1") || !strcmp(v, "H2") || !strcmp(v, "H3") ||
 			!strcmp(v, "H4") || !strcmp(v, "H5") || !strcmp(v, "H6")) {
 		print_header_tag_group(atoms);
-	} else if (!strcmp(v, "IMG")) {
-		print_image_tag_group(atoms);
 	} else if (!strcmp(v, "COLOR")) {
 		for (i = 1; i < atoms->len; i++) {
 			if (atoms->group[i]->type < ATOM_TAG_OPEN)
@@ -267,6 +277,26 @@ void print_header_tag_group(const atom_group_t *atoms) {
 		putchar(ch);
 		c++;
 	}
+}
+
+/**
+ * Prints out a link associated with an atom group.
+ *
+ * @param atoms Atom group object to be converted.
+ */
+void print_link_tag_group(const atom_group_t *atoms) {
+	atom_t *url;
+	int i;
+
+	/* Print the associated text. */
+	for (i = 2; i < (atoms->len - 1); i++)
+		print_simple_tag(atoms->group[i]);
+
+	/* Store the URL and print the reference tag. */
+	url = atom_new(ATOM_RAW);
+	url->value = strdup(atoms->group[1]->value);
+	atom_group_append(urls, url);
+	printf(" [%d]", urls->len);
 }
 
 /**
