@@ -5,7 +5,7 @@ PLATFORM := $(shell uname -s)
 BUILDDIR := build
 SOURCES  := shims.c utils.c atom.c
 OBJECTS  := $(patsubst %.c, $(BUILDDIR)/%.o, $(SOURCES))
-TARGETS  := $(OBJECTS) $(BUILDDIR)/bbcode $(BUILDDIR)/bb2html
+TARGETS  := $(OBJECTS) $(BUILDDIR)/bbcode $(BUILDDIR)/bb2html $(BUILDDIR)/bb2apt
 
 # Tools
 CC    = gcc
@@ -38,6 +38,9 @@ $(BUILDDIR)/bbcode: $(OBJECTS) $(BUILDDIR)/bbcode.o
 	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 
 $(BUILDDIR)/bb2html: $(OBJECTS) $(BUILDDIR)/bb2html.o
+	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
+
+$(BUILDDIR)/bb2apt: $(OBJECTS) $(BUILDDIR)/bb2apt.o
 	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 
 compile: $(BUILDDIR)/stamp $(TARGETS)
