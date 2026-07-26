@@ -309,12 +309,19 @@ void print_tag_group(const atom_group_t *atoms) {
 					print_tag_arg(atoms->group[i], atoms->group[i + j + 1]);
 					j++;
 				} else {
-					if (j > 0)
+					/* Advance past arguments that have already been printed. */
+					if (j > 0) {
 						i += j + 1;
+						j = 0;
+					}
 					break;
 				}
 			}
 			putchar('>');
+
+			/* Advance past single argument conditions. */
+			if (j > 0)
+				i += j;
 		} else {
 			print_tag(atoms->group[i], 1);
 		}
