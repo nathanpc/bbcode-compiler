@@ -1,6 +1,10 @@
 # Example and test files.
 *.bbt
 
+# Output files.
+*.bbc
+*.html
+
 # Object and executable files.
 build/
 *.obj
