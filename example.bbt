@@ -41,7 +41,7 @@ Or it can be attributed an author, such as Nathan Campos:
 
 Everyone loves to publish source code on the internet!
 
-[code]#include <stdio.h>
+[code=cpp]#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <limits.h>
