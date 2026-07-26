@@ -17,6 +17,8 @@
 void print_tag(const atom_t *atom, int close);
 void print_tag_arg(const atom_t *tag, const atom_t *arg);
 void print_tag_group(const atom_group_t *atoms);
+int atom_maybe_paragraph(const atom_t *atom);
+
 
 /**
  * Application's main entry point.
@@ -31,9 +33,13 @@ int main(int argc, char **argv) {
 	atom_group_t *atomsgrp;
 	atom_t *atom;
 	int ret;
+	int newlines;
+	int inpara;
 
 	/* Initialize variables. */
 	ret = 0;
+	newlines = 1;
+	inpara = 0;
 	atom = NULL;
 	atomsgrp = NULL;
 
@@ -64,6 +70,27 @@ int main(int argc, char **argv) {
 			break;
 		} else if (ret >= 1) {
 			continue;
+		}
+
+		/* Handle the creation of paragraphs. */
+		if (atom->type == ATOM_LINEBREAK) {
+			/* Are we closing a paragraph? */
+			if (inpara) {
+				printf("</p>");
+				inpara = 0;
+			}
+
+			newlines++;
+			putchar('\n');
+		} else {
+			/* Are we starting a new paragraph? */
+			if (newlines && atom_maybe_paragraph(atom)) {
+				inpara = newlines > 1;
+				if (inpara)
+					printf("<p>");
+			}
+
+			newlines = 0;
 		}
 
 		/* Deal with tags that may span more than a single atom. */
@@ -111,7 +138,8 @@ handle_atom:
 				atomsgrp = NULL;
 			}
 
-			print_tag(atom, 1);
+			if (atom->type != ATOM_LINEBREAK)
+				print_tag(atom, 1);
 			atom_free(atom);
 			atom = NULL;
 			break;
@@ -267,4 +295,28 @@ void print_tag_group(const atom_group_t *atoms) {
 			print_tag(atoms->group[i], 1);
 		}
 	}
+}
+
+/**
+ * Checks if the atom may be the start of a paragraph.
+ *
+ * @param atom Atom to be checked.
+ *
+ * @return TRUE if the atom type or value may be a valid start of a paragraph.
+ *         FALSE if it's an atom that may never be a start of a paragraph.
+ */
+int atom_maybe_paragraph(const atom_t *atom) {
+	const char *v;
+
+	/* If it's text, it's always a paragraph. */
+	if (atom->type == ATOM_RAW) {
+		return 1;
+	} else if (atom->type != ATOM_TAG_OPEN) {
+		return 0;
+	}
+
+	/* Check for specific tags that may be at the start of a paragraph. */
+	v = atom->value;
+  	return !strcmp(v, "B") || !strcmp(v, "I") || !strcmp(v, "U") ||
+		!strcmp(v, "S") || !strcmp(v, "URL") || !strcmp(v, "COLOR");
 }
