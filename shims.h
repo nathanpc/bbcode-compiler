@@ -18,6 +18,14 @@
 	#define LINE_MAX 2048
 #endif /* LINE_MAX */
 
+/**
+ * Silence warnings/errors related to POSIX functions that are not properly
+ * defined by Microsoft.
+ */
+#ifdef _WIN32
+	#define strdup _strdup
+#endif /* _WIN32 */
+
 void mem_snapshot_start(void);
 void mem_snapshot_report(void);
 
