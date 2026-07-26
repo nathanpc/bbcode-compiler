@@ -17,12 +17,15 @@
 #include "shims.h"
 
 /* Private functions. */
+char* buffer_simple_tag(char *buf, const atom_t *atom);
 void print_simple_tag(const atom_t *atom);
 void print_tag_group(const atom_group_t *atoms);
 void print_link_tag_group(const atom_group_t *atoms);
 void print_image_tag_group(const atom_group_t *atoms);
 void print_header_tag_group(const atom_group_t *atoms);
+void print_quote_tag_group(const atom_group_t *atoms);
 int should_group_tag(const atom_t *atom);
+const char* break_text_margin(const char *text, int margin);
 
 /* Global variables. */
 static atom_group_t *urls;
@@ -91,10 +94,6 @@ int main(int argc, char **argv) {
 			continue;
 		}
 
-		/* Handle the creation of paragraphs. */
-		if (atom->type == ATOM_LINEBREAK)
-			putchar('\n');
-
 		/* Deal with tags that may span more than a single atom. */
 		switch (atom->type) {
 		case ATOM_TAG_OPEN:
@@ -144,8 +143,7 @@ handle_atom:
 
 			/* Print the atom and move on. */
 			if (atom) {
-				if (atom->type != ATOM_LINEBREAK)
-					print_simple_tag(atom);
+				print_simple_tag(atom);
 				atom_free(atom);
 				atom = NULL;
 			}
@@ -154,6 +152,7 @@ handle_atom:
 	}
 
 	/* Print the links in our document. */
+	putchar('\n');
 	putchar('\n');
 	for (ret = 0; ret < urls->len; ret++)
 		printf("[%d]: %s\n", ret + 1, urls->group[ret]->value);
@@ -181,51 +180,82 @@ finish:
 }
 
 /**
- * Prints out a simple tag associated with an atom that can simply be
- * substituted directly without requiring any grouping.
+ * Appends a simple atom into a string so that it can later be broken at a set
+ * margin cleanly.
  *
- * @param atom  Atom object to be converted.
+ * @param buf  String buffer to get the atom appended to.
+ * @param atom Atom object to be converted.
+ *
+ * @return Position of the NUL terminator after appending the atom.
  */
-void print_simple_tag(const atom_t *atom) {
+char* buffer_simple_tag(char *buf, const atom_t *atom) {
 	if ((atom->type == ATOM_RAW) || (atom->type == ATOM_PREFMT)) {
 		/* Regular text and preformatted sections. */
-		printf("%s", atom->value);
+		strcat(buf, atom->value);
 	} else if (atom->type >= ATOM_TAG_OPEN) {
 		/* Actual tag for us to deal with. */
 		const char *v;
 
 		if (atom->type == ATOM_TAG_ARG) {
 			fprintf(stderr, "error: Trying to print a tag argument atom.\n");
-			return;
+			return buf + strlen(buf);
 		}
 
 		/* Print the tag. */
 		v = atom->value;
 		if (!strcmp(v, "B")) {
-			printf("**");
+			strcat(buf, "**");
 		} else if (!strcmp(v, "I")) {
-			putchar('*');
+			strcat(buf, "*");
 		} else if (!strcmp(v, "U")) {
-			putchar('_');
+			strcat(buf, "_");
 		} else if (!strcmp(v, "S")) {
-			putchar('-');
+			strcat(buf, "-");
 		} else if (!strcmp(v, "PRE")) {
 			printf("pre");
 			printf("h6");
 		} else if (!strcmp(v, "CODE")) {
-		} else if (!strcmp(v, "QUOTE")) {
-		} else if (!strcmp(v, "COLOR")) {
 		} else if (!strcmp(v, "TABLE")) {
 		} else if (!strcmp(v, "*")) {
 		} else if (!strcmp(v, "LIST")) {
 		} else if (!strcmp(v, "OLIST")) {
  		} else if (!strcmp(v, "TR") || !strcmp(v, "TH") || !strcmp(v, "TD")) {
-			putchar('|');
+			strcat(buf, "|");
 		} else {
 			fprintf(stderr, "warning: unknown tag %s\n", v);
-			printf("%s", v);
+			strcat(buf, v);
 		}
 	}
+
+	return buf + strlen(buf);
+}
+
+
+/**
+ * Prints out a simple tag associated with an atom that can simply be
+ * substituted directly without requiring any grouping.
+ *
+ * @param atom Atom object to be converted.
+ */
+void print_simple_tag(const atom_t *atom) {
+	char *buf;
+
+	/* We've encountered a deliberate line break. */
+	if (atom->type == ATOM_LINEBREAK) {
+		putchar('\n');
+	}
+
+	/* Allocate a string that's definitely big enough for anything. */
+	buf = malloc((strlen(atom->value) + 20) * sizeof(char));
+	*buf = '\0';
+
+	/* Buffer the output onto the string we've created and print it out. */
+	buffer_simple_tag(buf, atom);
+	printf("%s", buf);
+
+	/* Free resources. */
+	free(buf);
+	buf = NULL;
 }
 
 /**
@@ -244,6 +274,8 @@ void print_tag_group(const atom_group_t *atoms) {
 	} else if (!strcmp(v, "H1") || !strcmp(v, "H2") || !strcmp(v, "H3") ||
 			!strcmp(v, "H4") || !strcmp(v, "H5") || !strcmp(v, "H6")) {
 		print_header_tag_group(atoms);
+	} else if (!strcmp(v, "QUOTE")) {
+		print_quote_tag_group(atoms);
 	} else if (!strcmp(v, "COLOR")) {
 		for (i = 1; i < atoms->len; i++) {
 			if (atoms->group[i]->type < ATOM_TAG_OPEN)
@@ -318,6 +350,47 @@ void print_image_tag_group(const atom_group_t *atoms) {
 }
 
 /**
+ * Prints out quoted text associated with an atom group.
+ *
+ * @param atoms Atom group object to be converted.
+ */
+void print_quote_tag_group(const atom_group_t *atoms) {
+	const char *author;
+	char buf[LINE_MAX];
+	const char *brk;
+	char *cursor;
+	int i;
+
+	/* Get the author of the quote if one exists. */
+	author = NULL;
+	if (atoms->group[1]->type == ATOM_TAG_ARG)
+		author = atoms->group[1]->value;
+
+	/* Get the contents of the entire quote. */
+	cursor = buf;
+	*cursor = '\0';
+	for (i = author ? 2 : 1; i < (atoms->len - 1); i++)
+		cursor = buffer_simple_tag(cursor, atoms->group[i]);
+
+	/* Break the quote out according to our margin. */
+	cursor = buf;
+	brk = cursor;
+	while (*brk != '\0') {
+		brk = break_text_margin(cursor, 78);
+		printf("> ");
+		print_until(cursor, brk, 0);
+		putchar('\n');
+		cursor = (char*)(brk + 1);
+	}
+
+	/* Attribute the quote. */
+	if (author)
+		printf("  -- %s", author);
+
+	*buf = '\0';
+}
+
+/**
  * Checks if a tag should be grouped together for later being exported in APT.
  *
  * @param atom Opening tag atom to be checked.
@@ -331,4 +404,33 @@ int should_group_tag(const atom_t *atom) {
 		!strcmp(v, "H3") || !strcmp(v, "H4") || !strcmp(v, "H5") ||
 		!strcmp(v, "H6") || !strcmp(v, "LIST") || !strcmp(v, "OLIST") ||
 		!strcmp(v, "PRE");
+}
+
+/**
+ * Tells you where to break a long line of text according to a line margin.
+ *
+ * @param text   Text to be broken up in smaller chunks.
+ * @param margin Number of characters a line should have, exclusing the break.
+ *
+ * @return Pointer to where in the string the break should happen or the
+ *         position of the NUL terminator if the line doesn't exceed the margin.
+ */
+const char* break_text_margin(const char *text, int margin) {
+	const char *brkpoint;
+	const char *buf;
+
+	buf = text;
+	while (*buf != '\0') {
+		/* Store last place where we can break the text. */
+		if ((*buf == ' ') || (*buf == '\n'))
+			brkpoint = buf;
+
+		/* Looks like we've found the margin limit. */
+		if (((buf - text) > margin) && brkpoint)
+			return brkpoint;
+
+		buf++;
+	}
+
+	return buf;
 }
