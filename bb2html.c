@@ -234,7 +234,11 @@ void print_tag(const atom_t *atom, int close) {
 		} else if (!strcmp(v, "IMG")) {
 			printf("img");
 		} else if (!strcmp(v, "CODE")) {
-			printf("pre><code");
+			if (atom->type == ATOM_TAG_OPEN) {
+				printf("pre><code");
+			} else {
+				printf("code></pre");
+			}
 		} else if (!strcmp(v, "QUOTE")) {
 			printf("blockquote");
 		} else if (!strcmp(v, "COLOR")) {
