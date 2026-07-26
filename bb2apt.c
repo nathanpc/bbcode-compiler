@@ -25,7 +25,6 @@ void print_image_tag_group(const atom_group_t *atoms);
 void print_header_tag_group(const atom_group_t *atoms);
 void print_quote_tag_group(const atom_group_t *atoms);
 int should_group_tag(const atom_t *atom);
-const char* break_text_margin(const char *text, int margin);
 
 /* Global variables. */
 static atom_group_t *urls;
@@ -376,16 +375,22 @@ void print_quote_tag_group(const atom_group_t *atoms) {
 	cursor = buf;
 	brk = cursor;
 	while (*brk != '\0') {
-		brk = break_text_margin(cursor, 78);
+		/* Go to the next line. */
+		if (cursor != buf)
+			putchar('\n');
 		printf("> ");
+
+		/* Break up any long lines and print them out. */
+		brk = wrap_text(cursor, 78);
 		print_until(cursor, brk, 0);
-		putchar('\n');
+
+		/* Skip the character where we've broken the line. */
 		cursor = (char*)(brk + 1);
 	}
 
 	/* Attribute the quote. */
 	if (author)
-		printf("  -- %s", author);
+		printf("\n  -- %s", author);
 
 	*buf = '\0';
 }
@@ -404,33 +409,4 @@ int should_group_tag(const atom_t *atom) {
 		!strcmp(v, "H3") || !strcmp(v, "H4") || !strcmp(v, "H5") ||
 		!strcmp(v, "H6") || !strcmp(v, "LIST") || !strcmp(v, "OLIST") ||
 		!strcmp(v, "PRE");
-}
-
-/**
- * Tells you where to break a long line of text according to a line margin.
- *
- * @param text   Text to be broken up in smaller chunks.
- * @param margin Number of characters a line should have, exclusing the break.
- *
- * @return Pointer to where in the string the break should happen or the
- *         position of the NUL terminator if the line doesn't exceed the margin.
- */
-const char* break_text_margin(const char *text, int margin) {
-	const char *brkpoint;
-	const char *buf;
-
-	buf = text;
-	while (*buf != '\0') {
-		/* Store last place where we can break the text. */
-		if ((*buf == ' ') || (*buf == '\n'))
-			brkpoint = buf;
-
-		/* Looks like we've found the margin limit. */
-		if (((buf - text) > margin) && brkpoint)
-			return brkpoint;
-
-		buf++;
-	}
-
-	return buf;
 }

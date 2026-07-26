@@ -161,6 +161,35 @@ int strcmpe(const char *str, const char *suffix) {
 }
 
 /**
+ * Tells you where to break a long line of text according to a line margin.
+ *
+ * @param text   Text to be broken up in smaller chunks.
+ * @param margin Number of characters a line should have, exclusing the break.
+ *
+ * @return Pointer to where in the string the break should happen or the
+ *         position of the NUL terminator if the line doesn't exceed the margin.
+ */
+const char* wrap_text(const char *text, int margin) {
+	const char *brkpoint;
+	const char *buf;
+
+	buf = text;
+	while (*buf != '\0') {
+		/* Store last place where we can break the text. */
+		if ((*buf == ' ') || (*buf == '\n'))
+			brkpoint = buf;
+
+		/* Looks like we've found the margin limit. */
+		if (((buf - text) >= margin) && brkpoint)
+			return brkpoint;
+
+		buf++;
+	}
+
+	return buf;
+}
+
+/**
  * Prints a string until a definite point in itself.
  *
  * @param str       Begining of the string to be printed.
