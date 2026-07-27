@@ -50,6 +50,7 @@ void atom_print(const atom_t *atom);
 /* Atom group object functions. */
 atom_group_t* atom_group_new(void);
 void atom_group_free(atom_group_t *atoms);
+void atom_group_free_partial(atom_group_t *atoms);
 int atom_group_append(atom_group_t *atoms, atom_t *atom);
 
 #endif /* _BBCODE_ATOM_H */

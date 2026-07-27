@@ -291,14 +291,31 @@ void atom_group_free(atom_group_t *atoms) {
 	if (atoms == NULL)
 		return;
 
-	/* Go through group freeing all atoms and itself. */
+	/* Go through group freeing all atoms. */
 	if (atoms->group) {
 		int i;
 		for (i = 0; i < atoms->len; i++) {
 			atom_free(atoms->group[i]);
 			atoms->group[i] = NULL;
 		}
+	}
 
+	/* Free ourselves. */
+	atom_group_free_partial(atoms);
+}
+
+/**
+ * Frees up an atom group without touching any of the atoms it contains.
+ *
+ * @param atoms Atom group object to be freed.
+ */
+void atom_group_free_partial(atom_group_t *atoms) {
+	/* Do we even need to do anything? */
+	if (atoms == NULL)
+		return;
+
+	/* Free the atom group array. */
+	if (atoms->group) {
 		free(atoms->group);
 		atoms->group = NULL;
 	}
