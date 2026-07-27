@@ -484,14 +484,17 @@ void print_list_tag_group(const atom_group_t *atoms) {
 	char *buf;
 	const char *brk;
 	char *cursor;
+	int bulletspace;
 	int i;
 	int o;
 
 	/* Allocate a buffer that's definitely large enough to hold a line. */
 	buf = malloc(LINE_MAX * sizeof(char));
-
 	cursor = buf;
 	*cursor = '\0';
+
+	/* Go through the tag group. */
+	bulletspace = 0;
 	for (i = 2, o = 1; i < (atoms->len - 1); i++) {
 		atom_t *atom = atoms->group[i];
 
@@ -507,10 +510,28 @@ void print_list_tag_group(const atom_group_t *atoms) {
 			}
 
 			/* Indent list and print the bullet. */
-			printf("  %s ", bullet);
+			bulletspace = printf("  %s ", bullet);
 		} else if (atom->type == ATOM_LINEBREAK) {
-			/* Print and reset the buffered list item. */
-			printf("%s\n", buf);
+			/* Wrap the list item text according to our margin. */
+			cursor = buf;
+			brk = cursor;
+			while (*brk != '\0') {
+				/* Go to the next line that *just wrapped* and indent it. */
+				if (cursor != buf) {
+					int ind;
+					putchar('\n');
+					for (ind = 0; ind < bulletspace; ind++)
+						putchar(' ');
+				}
+
+				/* Break up any long lines and print them out. */
+				brk = wrap_text(cursor, 80 - bulletspace);
+				print_until(cursor, brk, 0);
+
+				/* Skip the character where we've broken the line. */
+				cursor = (char*)(brk + 1);
+			}
+			putchar('\n');
 
 			/* Reset list item buffer for next item. */
 			cursor = buf;

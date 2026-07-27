@@ -173,7 +173,7 @@ But sometimes we need to be very specific about the order of our items, especial
   [*]First do this
   [*]Second [b]thing[/b] to do should be this
   [*]We can also have [url=gopher://nathancampos.me/]links here[/url] without issues
-  [*]It's also important to have a [i]complex[/i] and long list item to test for proper text wrapping in [url=https://en.wikipedia.org/wiki/BBCode]BBCode documents[/url] such as this
+  [*]It's also important to have a [i]complex[/i] and long list item to test for proper text wrapping in [url=https://en.wikipedia.org/wiki/BBCode]BBCode documents[/url] such as this, proving that they will properly wrap to 80 characters.
   [*]You should be done by now
 [/olist]
 
