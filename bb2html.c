@@ -89,7 +89,7 @@ int main(int argc, char **argv) {
 		}
 
 		/* Handle the creation of paragraphs. */
-		if (atom->type == ATOM_LINEBREAK) {
+		if (atom_is_type(atom, ATOM_LINEBREAK)) {
 			/* Are we closing a paragraph? */
 			if (inpara) {
 				printf("</p>");
@@ -136,11 +136,11 @@ handle_atom:
 			/* Handle previous atom group first if one exists. */
 			if (atomsgrp) {
 				atom_t *first = *atomsgrp->group;
-				if (first->type == ATOM_TAG_OPEN) {
+				if (atom_is_type(first, ATOM_TAG_OPEN)) {
 					/* Check if we are dealing with a list item. */
 					if (*first->value == '*') {
 						/* Add atoms to the group until we reach a linebreak. */
-						if (atom->type != ATOM_LINEBREAK) {
+						if (!atom_is_type(atom, ATOM_LINEBREAK)) {
 							atom_group_append(atomsgrp, atom);
 							atom = NULL;
 							break;
@@ -150,7 +150,7 @@ handle_atom:
 						atom->type = ATOM_TAG_CLOSE;
 						free(atom->value);
 						atom->value = strdup("*");
-					} else if (!strcmp(first->value, "IMG")) {
+					} else if (atom_is_value(first, "IMG")) {
 						/* Append atoms until the tag closes. */
 						atom_group_append(atomsgrp, atom);
 						if ((atom->type == ATOM_TAG_CLOSE) &&
@@ -173,7 +173,7 @@ handle_atom:
 
 			/* Print the atom and move on. */
 			if (atom) {
-				if (atom->type != ATOM_LINEBREAK)
+				if (!atom_is_type(atom, ATOM_LINEBREAK))
 					print_tag(atom, 1);
 				atom_free(atom);
 				atom = NULL;
@@ -208,17 +208,17 @@ finish:
  * @param close Should we put the final '>' of the tag?
  */
 void print_tag(const atom_t *atom, int close) {
-	if ((atom->type == ATOM_RAW) || (atom->type == ATOM_PREFMT)) {
+	if (atom_is_type(atom, ATOM_RAW) || atom_is_type(atom, ATOM_PREFMT)) {
 		/* Regular text and preformatted sections. */
 		printf("%s", atom->value);
-	} else if (atom->type == ATOM_LINEBREAK) {
+	} else if (atom_is_type(atom, ATOM_LINEBREAK)) {
 		/* Linebreak */
 		printf("<br>\n");
 	} else if (atom->type >= ATOM_TAG_OPEN) {
 		/* Actual tag for us to deal with. */
 		const char *v;
 
-		if (atom->type == ATOM_TAG_ARG) {
+		if (atom_is_type(atom, ATOM_TAG_ARG)) {
 			fprintf(stderr, "error: Trying to print a tag argument atom.\n");
 			return;
 		}
@@ -226,7 +226,7 @@ void print_tag(const atom_t *atom, int close) {
 		/* Print the tag. */
 		v = atom->value;
 		putchar('<');
-		if (atom->type == ATOM_TAG_CLOSE)
+		if (atom_is_type(atom, ATOM_TAG_CLOSE))
 			putchar('/');
 		if (!strcmp(v, "B")) {
 			putchar('b');
@@ -255,7 +255,7 @@ void print_tag(const atom_t *atom, int close) {
 		} else if (!strcmp(v, "IMG")) {
 			printf("img");
 		} else if (!strcmp(v, "CODE")) {
-			if (atom->type == ATOM_TAG_OPEN) {
+			if (atom_is_type(atom, ATOM_TAG_OPEN)) {
 				printf("pre><code");
 			} else {
 				printf("code></pre");
@@ -328,14 +328,14 @@ void print_tag_group(const atom_group_t *atoms) {
 	int i;
 
 	/* Deal with the special case of image tags. */
-	if (!strcmp(atoms->group[0]->value, "IMG")) {
+	if (atom_is_value(atoms->group[0], "IMG")) {
 		print_image_tag_group(atoms);
 		return;
 	}
 
 	for (i = 0; i < atoms->len; i++) {
 		/* Print tag and its possible argument. */
-		if (atoms->group[i]->type == ATOM_TAG_OPEN) {
+		if (atom_is_type(atoms->group[i], ATOM_TAG_OPEN)) {
 			int j = 0;
 
 			print_tag(atoms->group[i], 0);
@@ -399,9 +399,9 @@ int atom_maybe_paragraph(const atom_t *atom) {
 	const char *v;
 
 	/* If it's text, it's always a paragraph. */
-	if (atom->type == ATOM_RAW) {
+	if (atom_is_type(atom, ATOM_RAW)) {
 		return 1;
-	} else if (atom->type != ATOM_TAG_OPEN) {
+	} else if (!atom_is_type(atom, ATOM_TAG_OPEN)) {
 		return 0;
 	}
 

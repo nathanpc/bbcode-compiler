@@ -44,6 +44,9 @@ void atom_free(atom_t *atom);
 int atom_parse_line(atom_t *atom, const char *line);
 int atom_parse_continue(atom_t *atom, const char *line);
 atom_type_t atom_type_fromstr(const char *str);
+int atom_is_type(const atom_t *atom, atom_type_t type);
+int atom_is_value(const atom_t *atom, const char *value);
+int atom_eq(const atom_t *atom, atom_type_t type, const char *value);
 int atom_args_maybe(const atom_t *atom);
 void atom_print(const atom_t *atom);
 

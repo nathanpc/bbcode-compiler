@@ -189,6 +189,43 @@ atom_type_t atom_type_fromstr(const char *str) {
 }
 
 /**
+ * Checks if an atom is of a specific type.
+ *
+ * @param atom Atom object to be tested.
+ * @param type Type of atom we are expecting.
+ *
+ * @return TRUE if the atom is of the specified type, FALSE otherwise.
+ */
+int atom_is_type(const atom_t *atom, atom_type_t type) {
+	return atom->type == type;
+}
+
+/**
+ * Checks if an atom is of a specific value.
+ *
+ * @param atom  Atom object to be tested.
+ * @param value Specific value we are expecting.
+ *
+ * @return TRUE if the atom is of the specified value, FALSE otherwise.
+ */
+int atom_is_value(const atom_t *atom, const char *value) {
+	return !strcmp(atom->value, value);
+}
+
+/**
+ * Checks if an atom is of a specific type and of an specific value.
+ *
+ * @param atom  Atom object to be tested.
+ * @param type  Type of atom we are expecting.
+ * @param value Expected value of our atom.
+ *
+ * @return TRUE if both type and value are equal, FALSE otherwise.
+ */
+int atom_eq(const atom_t *atom, atom_type_t type, const char *value) {
+	return (atom->type == type) && !strcmp(atom->value, value);
+}
+
+/**
  * Checks if a TAG_OPEN atom is of a type which may contain a subsequent
  * argument atom.
  *

@@ -126,10 +126,9 @@ handle_atom:
 				atom_t *first = *atomsgrp->group;
 
 				/* Add atoms to group until the tag is closed. */
-				if (first->type == ATOM_TAG_OPEN) {
+				if (atom_is_type(first, ATOM_TAG_OPEN)) {
 					atom_group_append(atomsgrp, atom);
-					if ((atom->type == ATOM_TAG_CLOSE) &&
-							!strcmp(atom->value, first->value)) {
+					if (atom_eq(atom, ATOM_TAG_CLOSE, first->value)) {
 						/* Ensure that we ignore the last tag close. */
 						atom = NULL;
 					} else {
@@ -195,14 +194,14 @@ finish:
  * @return Position of the NUL terminator after appending the atom.
  */
 char* buffer_simple_tag(char *buf, const atom_t *atom) {
-	if ((atom->type == ATOM_RAW) || (atom->type == ATOM_PREFMT)) {
+	if (atom_is_type(atom, ATOM_RAW) || atom_is_type(atom, ATOM_PREFMT)) {
 		/* Regular text and preformatted sections. */
 		strcat(buf, atom->value);
 	} else if (atom->type >= ATOM_TAG_OPEN) {
 		/* Actual tag for us to deal with. */
 		const char *v;
 
-		if (atom->type == ATOM_TAG_ARG) {
+		if (atom_is_type(atom, ATOM_TAG_ARG)) {
 			fprintf(stderr, "error: Trying to print a tag argument atom.\n");
 			return buf + strlen(buf);
 		}
@@ -240,7 +239,7 @@ void print_simple_tag(const atom_t *atom) {
 	char *buf;
 
 	/* We've encountered a deliberate line break. */
-	if (atom->type == ATOM_LINEBREAK) {
+	if (atom_is_type(atom, ATOM_LINEBREAK)) {
 		putchar('\n');
 	}
 
@@ -301,7 +300,7 @@ void print_header_tag_group(const atom_group_t *atoms) {
 	char ch;
 
 	/* Decide the character to use for the header underline. */
-	if (!strcmp(atoms->group[0]->value, "H1")) {
+	if (atom_is_value(atoms->group[0], "H1")) {
 		ch = '=';
 	} else {
 		ch = '-';
@@ -401,7 +400,7 @@ void print_quote_tag_group(const atom_group_t *atoms) {
 
 	/* Get the author of the quote if one exists. */
 	author = NULL;
-	if (atoms->group[1]->type == ATOM_TAG_ARG)
+	if (atom_is_type(atoms->group[1], ATOM_TAG_ARG))
 		author = atoms->group[1]->value;
 
 	/* Get the contents of the entire quote. */
@@ -449,7 +448,7 @@ void print_code_tag_group(const atom_group_t *atoms, int indent) {
 
 	/* Get the language code if one exists. */
 	lang = NULL;
-	if (atoms->group[1]->type == ATOM_TAG_ARG)
+	if (atom_is_type(atoms->group[1], ATOM_TAG_ARG))
 		lang = atoms->group[1]->value;
 
 	/* Print out the preformatted section with indentation fixed. */
@@ -501,7 +500,7 @@ void print_list_tag_group(const atom_group_t *atoms) {
 		atom_t *atom = atoms->group[i];
 
 		/* Check if we got a new list item. */
-		if ((atom->type == ATOM_TAG_OPEN) && (*atom->value == '*')) {
+		if (atom_is_type(atom, ATOM_TAG_OPEN) && (*atom->value == '*')) {
 			char bullet[4];
 
 			/* Is this an ordered list? */
@@ -513,7 +512,7 @@ void print_list_tag_group(const atom_group_t *atoms) {
 
 			/* Indent list and print the bullet. */
 			bulletspace = printf("  %s ", bullet);
-		} else if (atom->type == ATOM_LINEBREAK) {
+		} else if (atom_is_type(atom, ATOM_LINEBREAK)) {
 			/* Wrap the list item text according to our margin. */
 			cursor = buf;
 			brk = cursor;
@@ -542,7 +541,7 @@ void print_list_tag_group(const atom_group_t *atoms) {
 			cursor = buf;
 			*cursor = '\0';
 		} else if (!atom_just_whitespace(atom)) {
-			if (atom->type == ATOM_TAG_OPEN) {
+			if (atom_is_type(atom, ATOM_TAG_OPEN)) {
 				/* Handle complex tags. */
 				if (!strcmp(atom->value, "URL")) {
 					atom_group_t *subgrp;
@@ -553,7 +552,7 @@ void print_list_tag_group(const atom_group_t *atoms) {
 						atom_group_append(subgrp, atoms->group[i]);
 
 						/* Check if we've reached the end. */
-						if ((atoms->group[i]->type == ATOM_TAG_CLOSE) &&
+						if (atom_is_type(atoms->group[i], ATOM_TAG_CLOSE) &&
 								!strcmp(atoms->group[i]->value, atom->value)) {
 							break;
 						}
