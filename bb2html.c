@@ -337,6 +337,7 @@ void print_tag_group(const atom_group_t *atoms) {
 		/* Print tag and its possible argument. */
 		if (atoms->group[i]->type == ATOM_TAG_OPEN) {
 			int j = 0;
+
 			print_tag(atoms->group[i], 0);
 			while ((i + j + 1) < atoms->len) {
 				if (atoms->group[i + j + 1]->type == ATOM_TAG_ARG) {
@@ -345,7 +346,7 @@ void print_tag_group(const atom_group_t *atoms) {
 				} else {
 					/* Advance past arguments that have already been printed. */
 					if (j > 0) {
-						i += j + 1;
+						i += j;
 						j = 0;
 					}
 					break;
