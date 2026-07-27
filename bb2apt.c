@@ -478,11 +478,14 @@ void print_code_tag_group(const atom_group_t *atoms, int indent) {
  * @param atoms Atom group object to be converted.
  */
 void print_list_tag_group(const atom_group_t *atoms) {
-	char buf[LINE_MAX];
+	char *buf;
 	const char *brk;
 	char *cursor;
 	int i;
 	int o;
+
+	/* Allocate a buffer that's definitely large enough to hold a line. */
+	buf = malloc(LINE_MAX * sizeof(char));
 
 	cursor = buf;
 	*cursor = '\0';
@@ -503,14 +506,13 @@ void print_list_tag_group(const atom_group_t *atoms) {
 			/* Indent list and print the bullet. */
 			printf("  %s ", bullet);
 		} else if (atom->type == ATOM_LINEBREAK) {
-			printf("%s", buf);
+			/* Print and reset the buffered list item. */
+			printf("%s\n", buf);
+
+			/* Reset list item buffer for next item. */
 			cursor = buf;
 			*cursor = '\0';
-			putchar('\n');
 		} else if (!atom_just_whitespace(atom)) {
-			/* Buffer the contents of the list item. */
-			//cursor = buffer_simple_tag(cursor, atom);
-
 			if (atom->type == ATOM_TAG_OPEN) {
 				/* Handle complex tags. */
 				if (!strcmp(atom->value, "URL")) {
@@ -532,17 +534,21 @@ void print_list_tag_group(const atom_group_t *atoms) {
 					}
 
 					/* Print subgroup and free while keeping original atoms. */
-					print_tag_group(subgrp);
+					cursor = buffer_link_tag_group(cursor, subgrp);
 					atom_group_free_partial(subgrp);
 				} else {
-					print_simple_tag(atom);
+					cursor = buffer_simple_tag(cursor, atom);
 				}
 			} else {
 				/* Handle simple tags. */
-				print_simple_tag(atom);
+				cursor = buffer_simple_tag(cursor, atom);
 			}
 		}
 	}
+
+	/* Free resources. */
+	free(buf);
+	buf = NULL;
 }
 
 /**
