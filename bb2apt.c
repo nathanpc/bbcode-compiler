@@ -392,7 +392,7 @@ void print_image_tag_group(const atom_group_t *atoms) {
  */
 void print_quote_tag_group(const atom_group_t *atoms) {
 	const char *author;
-	char buf[LINE_MAX];
+	char *buf;
 	const char *brk;
 	char *cursor;
 	int i;
@@ -403,12 +403,13 @@ void print_quote_tag_group(const atom_group_t *atoms) {
 		author = atoms->group[1]->value;
 
 	/* Get the contents of the entire quote. */
+	buf = malloc(LINE_MAX * sizeof(char));
 	cursor = buf;
 	*cursor = '\0';
 	for (i = author ? 2 : 1; i < (atoms->len - 1); i++)
 		cursor = buffer_simple_tag(cursor, atoms->group[i]);
 
-	/* Break the quote out according to our margin. */
+	/* Wrap the quote text according to our margin. */
 	cursor = buf;
 	brk = cursor;
 	while (*brk != '\0') {
@@ -429,7 +430,9 @@ void print_quote_tag_group(const atom_group_t *atoms) {
 	if (author)
 		printf("\n  -- %s", author);
 
-	*buf = '\0';
+	/* Free resources. */
+	free(buf);
+	buf = NULL;
 }
 
 /**
