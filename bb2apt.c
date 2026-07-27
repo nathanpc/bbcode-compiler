@@ -20,6 +20,7 @@
 char* buffer_simple_tag(char *buf, const atom_t *atom);
 void print_simple_tag(const atom_t *atom);
 void print_tag_group(const atom_group_t *atoms);
+char* buffer_link_tag_group(char *buf, const atom_group_t *atoms);
 void print_link_tag_group(const atom_group_t *atoms);
 void print_image_tag_group(const atom_group_t *atoms);
 void print_header_tag_group(const atom_group_t *atoms);
@@ -314,23 +315,56 @@ void print_header_tag_group(const atom_group_t *atoms) {
 }
 
 /**
+ * Appends a full link tag (excluding its link) associated with an atom group to
+ * a string buffer.
+ *
+ * @param buf   String buffer that will have the atom appended to.
+ * @param atoms Atom group object to be converted.
+ *
+ * @return Position of the NUL terminator after appending the atom.
+ */
+char* buffer_link_tag_group(char *buf, const atom_group_t *atoms) {
+	char *cursor;
+	atom_t *url;
+	size_t len;
+	int i;
+
+	/* Buffer the associated text (body of the link). */
+	for (i = 2; i < (atoms->len - 1); i++)
+		cursor = buffer_simple_tag(buf, atoms->group[i]);
+
+	/* Store the URL and buffer the reference tag. */
+	url = atom_new(ATOM_RAW);
+	url->value = strdup(atoms->group[1]->value);
+	atom_group_append(urls, url);
+	len = sprintf(cursor, " [%d]", urls->len);
+
+	return cursor + len;
+}
+
+/**
  * Prints out a link associated with an atom group.
  *
  * @param atoms Atom group object to be converted.
  */
 void print_link_tag_group(const atom_group_t *atoms) {
-	atom_t *url;
+	char *buf;
+	size_t len;
 	int i;
 
-	/* Print the associated text. */
-	for (i = 2; i < (atoms->len - 1); i++)
-		print_simple_tag(atoms->group[i]);
+	/* Make a buffer big enough to hold our entire tag group. */
+	len = 0;
+	for (i = 0; i < atoms->len; i++)
+		len += strlen(atoms->group[i]->value);
+	buf = malloc((len + 1) * sizeof(char));
 
-	/* Store the URL and print the reference tag. */
-	url = atom_new(ATOM_RAW);
-	url->value = strdup(atoms->group[1]->value);
-	atom_group_append(urls, url);
-	printf(" [%d]", urls->len);
+	/* Buffer the link text and print it out. */
+	buffer_link_tag_group(buf, atoms);
+	printf("%s", buf);
+
+	/* Free resources. */
+	free(buf);
+	buf = NULL;
 }
 
 /**
