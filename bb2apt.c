@@ -25,7 +25,9 @@ void print_image_tag_group(const atom_group_t *atoms);
 void print_header_tag_group(const atom_group_t *atoms);
 void print_quote_tag_group(const atom_group_t *atoms);
 void print_code_tag_group(const atom_group_t *atoms, int indent);
+void print_list_tag_group(const atom_group_t *atoms);
 int should_group_tag(const atom_t *atom);
+int atom_just_whitespace(const atom_t *atom);
 
 /* Global variables. */
 static atom_group_t *urls;
@@ -125,14 +127,15 @@ handle_atom:
 				/* Add atoms to group until the tag is closed. */
 				if (first->type == ATOM_TAG_OPEN) {
 					atom_group_append(atomsgrp, atom);
-					if ((atom->type != ATOM_TAG_CLOSE) &&
-							strcmp(atom->value, first->value)) {
+					if ((atom->type == ATOM_TAG_CLOSE) &&
+							!strcmp(atom->value, first->value)) {
+						/* Ensure that we ignore the last tag close. */
+						atom = NULL;
+					} else {
+						/* Move to the next atom of the group. */
 						atom = NULL;
 						break;
 					}
-
-					/* Ensure that we ignore the last tag close. */
-					atom = NULL;
 				}
 
 				/* Print out the entire tag group and move on. */
@@ -211,14 +214,7 @@ char* buffer_simple_tag(char *buf, const atom_t *atom) {
 			strcat(buf, "_");
 		} else if (!strcmp(v, "S")) {
 			strcat(buf, "-");
-		} else if (!strcmp(v, "PRE")) {
-			printf("pre");
-			printf("h6");
-		} else if (!strcmp(v, "CODE")) {
 		} else if (!strcmp(v, "TABLE")) {
-		} else if (!strcmp(v, "*")) {
-		} else if (!strcmp(v, "LIST")) {
-		} else if (!strcmp(v, "OLIST")) {
  		} else if (!strcmp(v, "TR") || !strcmp(v, "TH") || !strcmp(v, "TD")) {
 			strcat(buf, "|");
 		} else {
@@ -280,6 +276,8 @@ void print_tag_group(const atom_group_t *atoms) {
 		print_code_tag_group(atoms, 1);
 	} else if (!strcmp(v, "PRE")) {
 		print_code_tag_group(atoms, 0);
+	} else if (!strcmp(v, "LIST") || !strcmp(v, "OLIST")) {
+		print_list_tag_group(atoms);
 	} else if (!strcmp(v, "COLOR")) {
 		for (i = 1; i < atoms->len; i++) {
 			if (atoms->group[i]->type < ATOM_TAG_OPEN)
@@ -441,6 +439,79 @@ void print_code_tag_group(const atom_group_t *atoms, int indent) {
 }
 
 /**
+ * Prints out a list associated with an atom group.
+ *
+ * @param atoms Atom group object to be converted.
+ */
+void print_list_tag_group(const atom_group_t *atoms) {
+	char buf[LINE_MAX];
+	const char *brk;
+	char *cursor;
+	int i;
+	int o;
+
+	cursor = buf;
+	*cursor = '\0';
+	for (i = 2, o = 1; i < (atoms->len - 1); i++) {
+		atom_t *atom = atoms->group[i];
+
+		/* Check if we got a new list item. */
+		if ((atom->type == ATOM_TAG_OPEN) && (*atom->value == '*')) {
+			char bullet[4];
+
+			/* Is this an ordered list? */
+			if (*atoms->group[0]->value == 'O') {
+				snprintf(bullet, 4, "%d.", o++);
+			} else {
+				strcpy(bullet, "-");
+			}
+
+			/* Indent list and print the bullet. */
+			printf("  %s ", bullet);
+		} else if (atom->type == ATOM_LINEBREAK) {
+			printf("%s", buf);
+			cursor = buf;
+			*cursor = '\0';
+			putchar('\n');
+		} else if (!atom_just_whitespace(atom)) {
+			/* Buffer the contents of the list item. */
+			//cursor = buffer_simple_tag(cursor, atom);
+
+			if (atom->type == ATOM_TAG_OPEN) {
+				/* Handle complex tags. */
+				if (!strcmp(atom->value, "URL")) {
+					atom_group_t *subgrp;
+
+					/* Create a subgroup for this tag and populate it. */
+					subgrp = atom_group_new();
+					while (i < (atoms->len - 1)) {
+						atom_group_append(subgrp, atoms->group[i]);
+
+						/* Check if we've reached the end. */
+						if ((atoms->group[i]->type == ATOM_TAG_CLOSE) &&
+								!strcmp(atoms->group[i]->value, atom->value)) {
+							break;
+						}
+
+						/* Advance to the next atom. */
+						i++;
+					}
+
+					/* Print subgroup and free while keeping original atoms. */
+					print_tag_group(subgrp);
+					atom_group_free_partial(subgrp);
+				} else {
+					print_simple_tag(atom);
+				}
+			} else {
+				/* Handle simple tags. */
+				print_simple_tag(atom);
+			}
+		}
+	}
+}
+
+/**
  * Checks if a tag should be grouped together for later being exported in APT.
  *
  * @param atom Opening tag atom to be checked.
@@ -454,4 +525,18 @@ int should_group_tag(const atom_t *atom) {
 		!strcmp(v, "H3") || !strcmp(v, "H4") || !strcmp(v, "H5") ||
 		!strcmp(v, "H6") || !strcmp(v, "LIST") || !strcmp(v, "OLIST") ||
 		!strcmp(v, "PRE");
+}
+
+/**
+ * Checks if an atom is simply whitespace. This function does not flag newlines
+ * as whitespace.
+ *
+ * @param atom Atom object to be checkded.
+ *
+ * @return TRUE if the contents of the atom is just whitespace and nothing else,
+ *         FALSE if it does contain some content.
+ */
+int atom_just_whitespace(const atom_t *atom) {
+	size_t len = strspn(atom->value, " \t");
+	return *(atom->value + len) == '\0';
 }
