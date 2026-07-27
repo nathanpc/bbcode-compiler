@@ -156,10 +156,12 @@ handle_atom:
 	}
 
 	/* Print the links in our document. */
-	putchar('\n');
-	putchar('\n');
-	for (ret = 0; ret < urls->len; ret++)
-		printf("[%d]: %s\n", ret + 1, urls->group[ret]->value);
+	if (urls->len > 0) {
+		putchar('\n');
+		putchar('\n');
+		for (ret = 0; ret < urls->len; ret++)
+			printf("[%d]: %s\n", ret + 1, urls->group[ret]->value);
+	}
 	ret = 0;
 
 finish:
