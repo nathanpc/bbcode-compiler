@@ -531,7 +531,10 @@ void print_list_tag_group(const atom_group_t *atoms) {
 				/* Skip the character where we've broken the line. */
 				cursor = (char*)(brk + 1);
 			}
-			putchar('\n');
+
+			/* Break to the next line, but prevent double break at list end. */
+			if (i < (atoms->len - 2))
+				putchar('\n');
 
 			/* Reset list item buffer for next item. */
 			cursor = buf;
