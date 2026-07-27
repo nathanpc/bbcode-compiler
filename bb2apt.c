@@ -358,6 +358,7 @@ void print_link_tag_group(const atom_group_t *atoms) {
 	for (i = 0; i < atoms->len; i++)
 		len += strlen(atoms->group[i]->value);
 	buf = malloc((len + 1) * sizeof(char));
+	*buf = '\0';
 
 	/* Buffer the link text and print it out. */
 	buffer_link_tag_group(buf, atoms);
