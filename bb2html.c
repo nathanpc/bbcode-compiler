@@ -151,16 +151,17 @@ handle_atom:
 						free(atom->value);
 						atom->value = strdup("*");
 					} else if (!strcmp(first->value, "IMG")) {
-						/* Append atoms until the image tag closes. */
+						/* Append atoms until the tag closes. */
 						atom_group_append(atomsgrp, atom);
-						if ((atom->type != ATOM_TAG_CLOSE) &&
-								strcmp(atom->value, "IMG")) {
+						if ((atom->type == ATOM_TAG_CLOSE) &&
+								!strcmp(atom->value, first->value)) {
+							/* Ensure that we ignore the last tag close. */
+							atom = NULL;
+						} else {
+							/* Move to the next atom of the group. */
 							atom = NULL;
 							break;
 						}
-
-						/* Ensure that we ignore the last image tag close. */
-						atom = NULL;
 					}
 				}
 
