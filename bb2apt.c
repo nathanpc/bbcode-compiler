@@ -27,6 +27,7 @@ void print_header_tag_group(const atom_group_t *atoms);
 void print_quote_tag_group(const atom_group_t *atoms);
 void print_code_tag_group(const atom_group_t *atoms, int indent);
 void print_list_tag_group(const atom_group_t *atoms);
+void print_table_tag_group(const atom_group_t *atoms);
 int should_group_tag(const atom_t *atom);
 int atom_just_whitespace(const atom_t *atom);
 
@@ -216,9 +217,6 @@ char* buffer_simple_tag(char *buf, const atom_t *atom) {
 			strcat(buf, "_");
 		} else if (!strcmp(v, "S")) {
 			strcat(buf, "-");
-		} else if (!strcmp(v, "TABLE")) {
- 		} else if (!strcmp(v, "TR") || !strcmp(v, "TH") || !strcmp(v, "TD")) {
-			strcat(buf, "|");
 		} else {
 			fprintf(stderr, "warning: unknown tag %s\n", v);
 			strcat(buf, v);
@@ -285,6 +283,8 @@ void print_tag_group(const atom_group_t *atoms) {
 			if (atoms->group[i]->type < ATOM_TAG_OPEN)
 				printf("%s", atoms->group[i]->value);
 		}
+	} else if (!strcmp(v, "TABLE")) {
+		print_table_tag_group(atoms);
 	} else {
 		fprintf(stderr, "warning: unknown tag group %s to be printed.\n", v);
 	}
@@ -581,6 +581,73 @@ void print_list_tag_group(const atom_group_t *atoms) {
 }
 
 /**
+ * Prints out a table associated with an atom group.
+ *
+ * @param atoms Atom group object to be converted.
+ */
+void print_table_tag_group(const atom_group_t *atoms) {
+	char ***table;
+	int cols;
+	int rows;
+	int i, j;
+
+	/* Determine the number of columns in the table from its first row. */
+	cols = -1;
+	for (i = 0; i < atoms->len; i++) {
+		/* Jump to the first table row. */
+		if (cols == -1) {
+			if (atom_eq(atoms->group[i], ATOM_TAG_OPEN, "TR"))
+				cols = 0;
+			continue;
+		}
+
+		/* Stop counting when we close the row. */
+		if (atom_eq(atoms->group[i], ATOM_TAG_CLOSE, "TR"))
+			break;
+
+		/* Count the number of columns from table cell tags. */
+		if (atom_is_type(atoms->group[i], ATOM_TAG_OPEN) &&
+				(atom_is_value(atoms->group[i], "TH") ||
+				atom_is_value(atoms->group[i], "TD"))) {
+			cols++;
+		}
+	}
+
+	/* Determine the number of rows in the table. */
+	rows = 0;
+	for (i = 0; i < (atoms->len - 2); i++) {
+		if (atom_eq(atoms->group[i], ATOM_TAG_OPEN, "TR"))
+			rows++;
+	}
+
+	/* Allocate our temporary table variable. */
+	table = malloc(rows * sizeof(char**));
+	for (i = 0; i < rows; i++)
+		table[i] = malloc(cols * sizeof(char*));
+
+	/* Initialize all table cells. */
+	for (i = 0; i < rows; i++) {
+		for (j = 0; j < cols; j++)
+			table[i][j] = NULL;
+	}
+
+	/* TODO: Populate each table cell. */
+
+	/* Free resources. */
+	for (i = 0; i < rows; i++) {
+		for (j = 0; j < cols; j++) {
+			if (table[i][j])
+				free(table[i][j]);
+			table[i][j] = NULL;
+		}
+		free(table[i]);
+		table[i] = NULL;
+	}
+	free(table);
+	table = NULL;
+}
+
+/**
  * Checks if a tag should be grouped together for later being exported in APT.
  *
  * @param atom Opening tag atom to be checked.
@@ -593,7 +660,7 @@ int should_group_tag(const atom_t *atom) {
 	return atom_args_maybe(atom) || !strcmp(v, "H1") || !strcmp(v, "H2") ||
 		!strcmp(v, "H3") || !strcmp(v, "H4") || !strcmp(v, "H5") ||
 		!strcmp(v, "H6") || !strcmp(v, "LIST") || !strcmp(v, "OLIST") ||
-		!strcmp(v, "PRE");
+		!strcmp(v, "PRE") || !strcmp(v, "TABLE");
 }
 
 /**
