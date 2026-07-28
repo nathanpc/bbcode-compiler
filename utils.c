@@ -164,7 +164,7 @@ int strcmpe(const char *str, const char *suffix) {
  * Tells you where to break a long line of text according to a line margin.
  *
  * @param text   Text to be broken up in smaller chunks.
- * @param margin Number of characters a line should have, exclusing the break.
+ * @param margin Number of characters a line should have, excluding the break.
  *
  * @return Pointer to where in the string the break should happen or the
  *         position of the NUL terminator if the line doesn't exceed the margin.
@@ -187,6 +187,48 @@ const char* wrap_text(const char *text, int margin) {
 	}
 
 	return buf;
+}
+
+/**
+ * Prints the contents of a text string (paragraph-format) wrapped to a specific
+ * line margin.
+ *
+ * The prepended text won't be printed on the first line, the beginning of text,
+ * only after a break.
+ *
+ * Last broken line, or the same line if text isn't long enough, won't get a
+ * line break.
+ *
+ * @param text    Text to be printed and wrapped in paragraph format.
+ * @param margin  Number of characters a line should have, excluding the line
+ *                break character and including the prepend string.
+ * @param prepend String to be prepended to each new line of the text.
+ */
+void print_text_wrap(const char *text, int margin, const char *prepend) {
+	const char *brk;
+	const char *cursor;
+	int pplen;
+
+	/* Determine the size of the prepend string. */
+	pplen = strlen(prepend);
+
+	/* Print the text while wrapping it. */
+	cursor = text;
+	brk = cursor;
+	while (*brk != '\0') {
+		/* Go to the next line that *just wrapped* and indent it if needed. */
+		if ((pplen > 0) && (cursor != text)) {
+			putchar('\n');
+			printf("%s", prepend);
+		}
+
+		/* Break up any long lines and print them out. */
+		brk = wrap_text(cursor, margin - pplen);
+		print_until(cursor, brk, 0);
+
+		/* Skip the character where we've broken the line. */
+		cursor = (char*)(brk + 1);
+	}
 }
 
 /**
