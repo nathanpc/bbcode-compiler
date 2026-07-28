@@ -29,6 +29,7 @@ void print_quote_tag_group(const atom_group_t *atoms);
 void print_code_tag_group(const atom_group_t *atoms, int indent);
 void print_list_tag_group(const atom_group_t *atoms);
 void print_table_tag_group(const atom_group_t *atoms);
+void print_table_row_divider(int cols, const int *colsizes, int header);
 int should_group_tag(const atom_t *atom);
 int atom_just_whitespace(const atom_t *atom);
 
@@ -605,14 +606,17 @@ void print_list_tag_group(const atom_group_t *atoms) {
  */
 void print_table_tag_group(const atom_group_t *atoms) {
 	char ***table;
+	int *colsizes;
 	char buf[512];
 	int cols;
 	int rows;
+	int hashead;
 	int r, c;
 	int i, j;
 
 	/* Determine the number of columns in the table from its first row. */
 	cols = -1;
+	hashead = 0;
 	for (i = 0; i < atoms->len; i++) {
 		/* Jump to the first table row. */
 		if (cols == -1) {
@@ -630,6 +634,10 @@ void print_table_tag_group(const atom_group_t *atoms) {
 				(atom_is_value(atoms->group[i], "TH") ||
 				atom_is_value(atoms->group[i], "TD"))) {
 			cols++;
+
+			/* Check if we have a header in this table. */
+			if (atom_is_value(atoms->group[i], "TH"))
+				hashead = 1;
 		}
 	}
 
@@ -644,11 +652,14 @@ void print_table_tag_group(const atom_group_t *atoms) {
 	table = malloc(rows * sizeof(char**));
 	for (i = 0; i < rows; i++)
 		table[i] = malloc(cols * sizeof(char*));
+	colsizes = malloc(cols * sizeof(int));
 
 	/* Initialize all table cells. */
 	for (i = 0; i < rows; i++) {
-		for (j = 0; j < cols; j++)
+		for (j = 0; j < cols; j++) {
 			table[i][j] = NULL;
+			colsizes[j] = 0;
+		}
 	}
 
 	/* Populate each table cell. */
@@ -687,13 +698,47 @@ void print_table_tag_group(const atom_group_t *atoms) {
 		}
 	}
 
+	/* Determine the maximum size of each column. */
+	for (c = 0; c < cols; c++) {
+		for (r = 0; r < rows; r++) {
+			int cz = strlen(table[r][c]);
+			if (colsizes[c] < cz)
+				colsizes[c] = cz;
+		}
+	}
+
 	/* Print out the table and its contents. */
+	print_table_row_divider(cols, colsizes, 0);
+	putchar('\n');
 	for (r = 0; r < rows; r++) {
+		/* Print an entire row. */
 		putchar('|');
 		for (c = 0; c < cols; c++) {
-			printf(" %s |", table[r][c]);
+			int cz, left, right;
+
+			/* Determine paddings for centering. */
+			cz = colsizes[c] - strlen(table[r][c]);
+			left = cz / 2;
+			right = cz - left;
+
+			/* Left pad to center. */
+			for (i = 0; i < left; i++)
+				putchar(' ');
+
+			/* Print the actual cell. */
+			printf(" %s ", table[r][c]);
+
+			/* Right pad and close the cell. */
+			for (i = 0; i < right; i++)
+				putchar(' ');
+			putchar('|');
 		}
 		putchar('\n');
+
+		/* Print row divider. */
+		print_table_row_divider(cols, colsizes, (r == 0) && hashead);
+		if (r < (rows - 1))
+			putchar('\n');
 	}
 
 	/* Free resources. */
@@ -708,6 +753,20 @@ void print_table_tag_group(const atom_group_t *atoms) {
 	}
 	free(table);
 	table = NULL;
+}
+
+void print_table_row_divider(int cols, const int *colsizes, int header) {
+	int c, i;
+
+	putchar('|');
+	for (c = 0; c < cols; c++) {
+		/* Horizontal divider. */
+		for (i = 0; i < (colsizes[c] + 2); i++)
+			putchar(header ? '=' : '-');
+
+		/* Column divider. */
+		putchar((c < (cols - 1)) ? '+' : '|');
+	}
 }
 
 /**
