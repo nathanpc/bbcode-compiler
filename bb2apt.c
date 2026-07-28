@@ -20,6 +20,7 @@
 char* buffer_simple_tag(char *buf, const atom_t *atom);
 void print_simple_tag(const atom_t *atom);
 void print_tag_group(const atom_group_t *atoms);
+char* buffer_paragraph_tag_group(char *buf, const atom_group_t *atoms);
 char* buffer_link_tag_group(char *buf, const atom_group_t *atoms);
 void print_link_tag_group(const atom_group_t *atoms);
 void print_image_tag_group(const atom_group_t *atoms);
@@ -316,6 +317,59 @@ void print_header_tag_group(const atom_group_t *atoms) {
 }
 
 /**
+ * Appends an entire paragraph associated with an atom group, which can be
+ * comprised of simple atoms and links, to a string buffer.
+ *
+ * @param buf   String buffer that will have the atoms appended to.
+ * @param atoms Atom group object to be converted.
+ *
+ * @return Position of the NUL terminator after appending all the atoms.
+ */
+char* buffer_paragraph_tag_group(char *buf, const atom_group_t *atoms) {
+	char *cursor;
+	int i;
+
+	/* Go through the atoms and buffer them out. */
+	cursor = buf;
+	for (i = 0; i < atoms->len; i++) {
+		atom_t *atom = atoms->group[i];
+
+		if (atom_is_type(atom, ATOM_TAG_OPEN)) {
+			/* Handle complex tags. */
+			if (atom_is_value(atom, "URL")) {
+				atom_group_t *subgrp;
+
+				/* Create a subgroup for this tag and populate it. */
+				subgrp = atom_group_new();
+				while (i < (atoms->len - 1)) {
+					atom_group_append(subgrp, atoms->group[i]);
+
+					/* Check if we've reached the end. */
+					if (atom_is_type(atoms->group[i], ATOM_TAG_CLOSE) &&
+							atom_is_value(atoms->group[i], atom->value)) {
+						break;
+					}
+
+					/* Advance to the next atom. */
+					i++;
+				}
+
+				/* Print subgroup and free while keeping original atoms. */
+				cursor = buffer_link_tag_group(cursor, subgrp);
+				atom_group_free_partial(subgrp);
+			} else {
+				cursor = buffer_simple_tag(cursor, atom);
+			}
+		} else {
+			/* Handle simple tags. */
+			cursor = buffer_simple_tag(cursor, atom);
+		}
+	}
+
+	return cursor;
+}
+
+/**
  * Appends a full link tag (excluding its link) associated with an atom group to
  * a string buffer.
  *
@@ -393,10 +447,10 @@ void print_image_tag_group(const atom_group_t *atoms) {
  * @param atoms Atom group object to be converted.
  */
 void print_quote_tag_group(const atom_group_t *atoms) {
+	atom_group_t *subgrp;
 	const char *author;
 	char *buf;
-	const char *brk;
-	char *cursor;
+	int buflen;
 	int i;
 
 	/* Get the author of the quote if one exists. */
@@ -404,37 +458,32 @@ void print_quote_tag_group(const atom_group_t *atoms) {
 	if (atom_is_type(atoms->group[1], ATOM_TAG_ARG))
 		author = atoms->group[1]->value;
 
-	/* Get the contents of the entire quote. */
-	buf = malloc(LINE_MAX * sizeof(char));
-	cursor = buf;
-	*cursor = '\0';
-	for (i = author ? 2 : 1; i < (atoms->len - 1); i++)
-		cursor = buffer_simple_tag(cursor, atoms->group[i]);
-
-	/* Wrap the quote text according to our margin. */
-	cursor = buf;
-	brk = cursor;
-	while (*brk != '\0') {
-		/* Go to the next line. */
-		if (cursor != buf)
-			putchar('\n');
-		printf("> ");
-
-		/* Break up any long lines and print them out. */
-		brk = wrap_text(cursor, 78);
-		print_until(cursor, brk, 0);
-
-		/* Skip the character where we've broken the line. */
-		cursor = (char*)(brk + 1);
+	/* Subgroup the entire quote. */
+	buflen = 1;
+	subgrp = atom_group_new();
+	for (i = author ? 2 : 1; i < (atoms->len - 1); i++) {
+		atom_group_append(subgrp, atoms->group[i]);
+		buflen += strlen(atoms->group[i]->value);
 	}
+
+	/* Allocate a string big enough to hold the entire quote. */
+	buf = malloc(buflen * 1.3 * sizeof(char));
+	*buf = '\0';
+
+	/* Buffer the content of the entire quote. */
+	buffer_paragraph_tag_group(buf, subgrp);
+	atom_group_free_partial(subgrp);
+	subgrp = NULL;
+
+	/* Print the quote text wrapped according to our margin and free it. */
+	printf("> ");
+	print_text_wrap(buf, 80, "> ");
+	free(buf);
+	buf = NULL;
 
 	/* Attribute the quote. */
 	if (author)
 		printf("\n  -- %s", author);
-
-	/* Free resources. */
-	free(buf);
-	buf = NULL;
 }
 
 /**
@@ -483,101 +532,70 @@ void print_code_tag_group(const atom_group_t *atoms, int indent) {
  * @param atoms Atom group object to be converted.
  */
 void print_list_tag_group(const atom_group_t *atoms) {
-	char *buf;
-	const char *brk;
-	char *cursor;
-	int bulletspace;
 	int i;
 	int o;
 
-	/* Allocate a buffer that's definitely large enough to hold a line. */
-	buf = malloc(LINE_MAX * sizeof(char));
-	cursor = buf;
-	*cursor = '\0';
-
 	/* Go through the tag group. */
-	bulletspace = 0;
 	for (i = 2, o = 1; i < (atoms->len - 1); i++) {
 		atom_t *atom = atoms->group[i];
 
-		/* Check if we got a new list item. */
+		/* Process an entire new list item all at once. */
 		if (atom_is_type(atom, ATOM_TAG_OPEN) && (*atom->value == '*')) {
-			char bullet[4];
+			atom_group_t *subgrp;
+			char bullet[10];
+			int buflen;
+			char *buf;
+			char *cursor;
 
-			/* Is this an ordered list? */
+			/* Create the bullet indentation. */
+			*bullet = '\0';
 			if (*atoms->group[0]->value == 'O') {
-				snprintf(bullet, 4, "%d.", o++);
+				/* Ordered list. */
+				snprintf(bullet, 10, "  %d. ", o++);
 			} else {
-				strcpy(bullet, "-");
+				/* Regular list. */
+				strcpy(bullet, "  - ");
 			}
 
-			/* Indent list and print the bullet. */
-			bulletspace = printf("  %s ", bullet);
-		} else if (atom_is_type(atom, ATOM_LINEBREAK)) {
-			/* Wrap the list item text according to our margin. */
-			cursor = buf;
-			brk = cursor;
-			while (*brk != '\0') {
-				/* Go to the next line that *just wrapped* and indent it. */
-				if (cursor != buf) {
-					int ind;
-					putchar('\n');
-					for (ind = 0; ind < bulletspace; ind++)
-						putchar(' ');
-				}
-
-				/* Break up any long lines and print them out. */
-				brk = wrap_text(cursor, 80 - bulletspace);
-				print_until(cursor, brk, 0);
-
-				/* Skip the character where we've broken the line. */
-				cursor = (char*)(brk + 1);
+			/* Print the bullet and create an indentation string. */
+			printf("%s", bullet);
+			cursor = bullet;
+			while (*cursor != '\0') {
+				*cursor = ' ';
+				cursor++;
 			}
+
+			/* Subgroup the entire list item. */
+			subgrp = atom_group_new();
+			buflen = 1;
+			i++;
+			while (!atom_is_type(atoms->group[i], ATOM_LINEBREAK)) {
+				atom_group_append(subgrp, atoms->group[i]);
+				buflen += strlen(atoms->group[i]->value);
+				i++;
+			}
+
+			/* Allocate a buffer that's large enough to hold the item. */
+			buf = malloc(buflen * 1.3 * sizeof(char));
+			*buf = '\0';
+
+			/* Buffer the contents of the list item. */
+			buffer_paragraph_tag_group(buf, subgrp);
+			atom_group_free_partial(subgrp);
+			subgrp = NULL;
+
+			/* Print list item text wrapped according to our margin. */
+			print_text_wrap(buf, 80, bullet);
+
+			/* Free the temporary buffer. */
+			free(buf);
+			buf = NULL;
 
 			/* Break to the next line, but prevent double break at list end. */
 			if (i < (atoms->len - 2))
 				putchar('\n');
-
-			/* Reset list item buffer for next item. */
-			cursor = buf;
-			*cursor = '\0';
-		} else if (!atom_just_whitespace(atom)) {
-			if (atom_is_type(atom, ATOM_TAG_OPEN)) {
-				/* Handle complex tags. */
-				if (!strcmp(atom->value, "URL")) {
-					atom_group_t *subgrp;
-
-					/* Create a subgroup for this tag and populate it. */
-					subgrp = atom_group_new();
-					while (i < (atoms->len - 1)) {
-						atom_group_append(subgrp, atoms->group[i]);
-
-						/* Check if we've reached the end. */
-						if (atom_is_type(atoms->group[i], ATOM_TAG_CLOSE) &&
-								!strcmp(atoms->group[i]->value, atom->value)) {
-							break;
-						}
-
-						/* Advance to the next atom. */
-						i++;
-					}
-
-					/* Print subgroup and free while keeping original atoms. */
-					cursor = buffer_link_tag_group(cursor, subgrp);
-					atom_group_free_partial(subgrp);
-				} else {
-					cursor = buffer_simple_tag(cursor, atom);
-				}
-			} else {
-				/* Handle simple tags. */
-				cursor = buffer_simple_tag(cursor, atom);
-			}
 		}
 	}
-
-	/* Free resources. */
-	free(buf);
-	buf = NULL;
 }
 
 /**
