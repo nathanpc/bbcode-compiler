@@ -202,7 +202,8 @@ const char* wrap_text(const char *text, int margin) {
  * @param text    Text to be printed and wrapped in paragraph format.
  * @param margin  Number of characters a line should have, excluding the line
  *                break character and including the prepend string.
- * @param prepend String to be prepended to each new line of the text.
+ * @param prepend String to be prepended to each new line of the text. May be
+ *                NULL or empty if nothing is to be prepended.
  */
 void print_text_wrap(const char *text, int margin, const char *prepend) {
 	const char *brk;
@@ -210,16 +211,17 @@ void print_text_wrap(const char *text, int margin, const char *prepend) {
 	int pplen;
 
 	/* Determine the size of the prepend string. */
-	pplen = strlen(prepend);
+	pplen = prepend ? strlen(prepend) : 0;
 
 	/* Print the text while wrapping it. */
 	cursor = text;
 	brk = cursor;
 	while (*brk != '\0') {
 		/* Go to the next line that *just wrapped* and indent it if needed. */
-		if ((pplen > 0) && (cursor != text)) {
+		if (cursor != text) {
 			putchar('\n');
-			printf("%s", prepend);
+			if (pplen > 0)
+				printf("%s", prepend);
 		}
 
 		/* Break up any long lines and print them out. */
