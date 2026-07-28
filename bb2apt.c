@@ -605,8 +605,10 @@ void print_list_tag_group(const atom_group_t *atoms) {
  */
 void print_table_tag_group(const atom_group_t *atoms) {
 	char ***table;
+	char buf[512];
 	int cols;
 	int rows;
+	int r, c;
 	int i, j;
 
 	/* Determine the number of columns in the table from its first row. */
@@ -649,7 +651,50 @@ void print_table_tag_group(const atom_group_t *atoms) {
 			table[i][j] = NULL;
 	}
 
-	/* TODO: Populate each table cell. */
+	/* Populate each table cell. */
+	r = 0;
+	c = 0;
+	for (i = 1; i < (atoms->len - 2); i++) {
+		if (atom_is_type(atoms->group[i], ATOM_TAG_OPEN) &&
+				(atom_is_value(atoms->group[i], "TD") ||
+				atom_is_value(atoms->group[i], "TH"))) {
+			/* We've reached a cell. */
+			atom_group_t *cellgrp;
+
+			/* Skip to the inside of the cell. */
+			i++;
+
+			/* Subgroup the entire cell contents and buffer it. */
+			cellgrp = atom_group_new();
+			*buf = '\0';
+			while (!atom_eq(atoms->group[i], ATOM_TAG_CLOSE, "TD") &&
+					!atom_eq(atoms->group[i], ATOM_TAG_CLOSE, "TH")) {
+				atom_group_append(cellgrp, atoms->group[i]);
+				i++;
+			}
+			buffer_paragraph_tag_group(buf, cellgrp);
+			atom_group_free_partial(cellgrp);
+			cellgrp = NULL;
+
+			/* Store the cell contents and move to the next one. */
+			table[r][c] = strdup(buf);
+			c++;
+			i--;
+		} else if (atom_eq(atoms->group[i], ATOM_TAG_CLOSE, "TR")) {
+			/* Start populating the next row. */
+			r++;
+			c = 0;
+		}
+	}
+
+	/* Print out the table and its contents. */
+	for (r = 0; r < rows; r++) {
+		putchar('|');
+		for (c = 0; c < cols; c++) {
+			printf(" %s |", table[r][c]);
+		}
+		putchar('\n');
+	}
 
 	/* Free resources. */
 	for (i = 0; i < rows; i++) {
