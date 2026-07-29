@@ -174,6 +174,7 @@ const char* wrap_text(const char *text, int margin) {
 	const char *buf;
 
 	buf = text;
+	brkpoint = NULL;
 	while (*buf != '\0') {
 		/* Store last place where we can break the text. */
 		if ((*buf == ' ') || (*buf == '\n'))
@@ -211,7 +212,7 @@ void print_text_wrap(const char *text, int margin, const char *prepend) {
 	int pplen;
 
 	/* Determine the size of the prepend string. */
-	pplen = prepend ? strlen(prepend) : 0;
+	pplen = prepend ? (int)strlen(prepend) : 0;
 
 	/* Print the text while wrapping it. */
 	cursor = text;
