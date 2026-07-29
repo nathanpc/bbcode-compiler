@@ -46,6 +46,7 @@ static atom_group_t *urls;
  */
 int main(int argc, char **argv) {
 	char line[LINE_MAX];
+	atom_group_t *paragrp;
 	atom_group_t *atomsgrp;
 	atom_t *atom;
 	int ret;
@@ -57,6 +58,7 @@ int main(int argc, char **argv) {
 	/* Initialize variables. */
 	ret = 0;
 	atom = NULL;
+	paragrp = NULL;
 	atomsgrp = NULL;
 	stream = stdin;
 	urls = atom_group_new();
@@ -113,9 +115,11 @@ int main(int argc, char **argv) {
 			break;
 		case ATOM_TAG_ARG:
 			/* Check if we have a valid tag group to append this argument to. */
-			if (atomsgrp == NULL) {
+			if ((atomsgrp == NULL) && (paragrp == NULL)) {
 				fprintf(stderr, "error: atom argument found without group\n");
 				goto finish;
+			} else if (paragrp) {
+				goto handle_atom;
 			}
 
 			/* Append the argument to the current tag group. */
@@ -145,6 +149,40 @@ handle_atom:
 				print_tag_group(atomsgrp);
 				atom_group_free(atomsgrp);
 				atomsgrp = NULL;
+			} else if (paragrp) {
+				/* Grouping up atoms for a paragraph. */
+				if (!atom_is_type(atom, ATOM_LINEBREAK)) {
+					atom_group_append(paragrp, atom);
+					atom = NULL;
+				} else {
+					/* It's time to print the paragraph. */
+					size_t paralen;
+					int i;
+
+					/* Allocate a buffer long enough to hold the paragraph. */
+					paralen = 1;
+					for (i = 0; i < paragrp->len; i++)
+						paralen += strlen(paragrp->group[i]->value);
+					buf = malloc(paralen * 1.3 * sizeof(char));
+					*buf = '\0';
+
+					/* Buffer the entire contents of the paragraph. */
+					buffer_paragraph_tag_group(buf, paragrp);
+					atom_group_free(paragrp);
+					paragrp = NULL;
+
+					/* Print paragraph text wrapped according to our margin. */
+					print_text_wrap(buf, 80, NULL);
+
+					/* Free the temporary buffer. */
+					free(buf);
+					buf = NULL;
+				}
+			} else if (!atom_is_type(atom, ATOM_LINEBREAK)) {
+				/* We are about to start parsing a paragraph. */
+				paragrp = atom_group_new();
+				atom_group_append(paragrp, atom);
+				atom = NULL;
 			}
 
 			/* Print the atom and move on. */
@@ -263,12 +301,9 @@ void print_simple_tag(const atom_t *atom) {
  */
 void print_tag_group(const atom_group_t *atoms) {
 	const char *v = atoms->group[0]->value;
-	int i;
 
 	if (!strcmp(v, "IMG")) {
 		print_image_tag_group(atoms);
-	} else if (!strcmp(v, "URL")) {
-		print_link_tag_group(atoms);
 	} else if (!strcmp(v, "H1") || !strcmp(v, "H2") || !strcmp(v, "H3") ||
 			!strcmp(v, "H4") || !strcmp(v, "H5") || !strcmp(v, "H6")) {
 		print_header_tag_group(atoms);
@@ -280,11 +315,6 @@ void print_tag_group(const atom_group_t *atoms) {
 		print_code_tag_group(atoms, 0);
 	} else if (!strcmp(v, "LIST") || !strcmp(v, "OLIST")) {
 		print_list_tag_group(atoms);
-	} else if (!strcmp(v, "COLOR")) {
-		for (i = 1; i < atoms->len; i++) {
-			if (atoms->group[i]->type < ATOM_TAG_OPEN)
-				printf("%s", atoms->group[i]->value);
-		}
 	} else if (!strcmp(v, "TABLE")) {
 		print_table_tag_group(atoms);
 	} else {
@@ -358,6 +388,12 @@ char* buffer_paragraph_tag_group(char *buf, const atom_group_t *atoms) {
 				/* Print subgroup and free while keeping original atoms. */
 				cursor = buffer_link_tag_group(cursor, subgrp);
 				atom_group_free_partial(subgrp);
+			} else if (atom_is_value(atom, "COLOR")) {
+				while (!atom_eq(atoms->group[i], ATOM_TAG_CLOSE, "COLOR")) {
+					if (atoms->group[i]->type < ATOM_TAG_OPEN)
+						cursor = buffer_simple_tag(cursor, atoms->group[i]);
+					i++;
+				}
 			} else {
 				cursor = buffer_simple_tag(cursor, atom);
 			}
@@ -779,6 +815,11 @@ void print_table_row_divider(int cols, const int *colsizes, int header) {
  */
 int should_group_tag(const atom_t *atom) {
 	const char *v = atom->value;
+
+	/* Atoms to ignore since they are dealt with by buffering. */
+	if (!strcmp(v, "URL") || !strcmp(v, "COLOR"))
+		return 0;
+
 	return atom_args_maybe(atom) || !strcmp(v, "H1") || !strcmp(v, "H2") ||
 		!strcmp(v, "H3") || !strcmp(v, "H4") || !strcmp(v, "H5") ||
 		!strcmp(v, "H6") || !strcmp(v, "LIST") || !strcmp(v, "OLIST") ||
