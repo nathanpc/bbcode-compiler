@@ -176,8 +176,9 @@ char** lexer(const char *code) {
 			break;
 		}
 		
-#ifdef _DEBUG
-		printf("LEXER %d \"%s\" %d\n", stage, tokens[count - 1], count);
+#if defined(_DEBUG)
+		fprintf(stderr, "LEXER %d \"%s\" %d\n", stage, tokens[count - 1],
+			count);
 #endif /* _DEBUG */
 
 		/* Change lexer stage if needed. */

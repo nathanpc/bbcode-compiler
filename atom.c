@@ -280,11 +280,7 @@ void atom_print(const atom_t *atom) {
 	/* Value */
 	if (atom->type == ATOM_PREFMT)
 		putchar('"');
-#ifdef _DEBUG
-	printf("%s", atom->value);
-#else
 	printf("%s", (atom->value == NULL) ? "" : atom->value);
-#endif /* _DEBUG */
 	if (atom->type == ATOM_PREFMT)
 		printf("\"\tPREFMT");
 	putchar('\n');
