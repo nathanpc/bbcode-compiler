@@ -163,7 +163,7 @@ handle_atom:
 					paralen = 1;
 					for (i = 0; i < paragrp->len; i++)
 						paralen += strlen(paragrp->group[i]->value);
-					buf = malloc(paralen * 1.3 * sizeof(char));
+					buf = malloc((size_t)(paralen * 1.3) * sizeof(char));
 					*buf = '\0';
 
 					/* Buffer the entire contents of the paragraph. */
@@ -422,8 +422,16 @@ char* buffer_link_tag_group(char *buf, const atom_group_t *atoms) {
 	int i;
 
 	/* Buffer the associated text (body of the link). */
+	cursor = NULL;
 	for (i = 2; i < (atoms->len - 1); i++)
 		cursor = buffer_simple_tag(buf, atoms->group[i]);
+
+	/* Ensure that we error out if something bad happens. */
+	if (cursor == NULL) {
+		fprintf(stderr, "error: invalid link tag group, unable to buffer, "
+			"ignoring.\n");
+		return buf + strlen(buf);
+	}
 
 	/* Store the URL and buffer the reference tag. */
 	url = atom_new(ATOM_RAW);
@@ -486,8 +494,8 @@ void print_image_tag_group(const atom_group_t *atoms) {
 void print_quote_tag_group(const atom_group_t *atoms) {
 	atom_group_t *subgrp;
 	const char *author;
+	size_t buflen;
 	char *buf;
-	int buflen;
 	int i;
 
 	/* Get the author of the quote if one exists. */
@@ -504,7 +512,7 @@ void print_quote_tag_group(const atom_group_t *atoms) {
 	}
 
 	/* Allocate a string big enough to hold the entire quote. */
-	buf = malloc(buflen * 1.3 * sizeof(char));
+	buf = malloc((size_t)(buflen * 1.3) * sizeof(char));
 	*buf = '\0';
 
 	/* Buffer the content of the entire quote. */
@@ -580,7 +588,7 @@ void print_list_tag_group(const atom_group_t *atoms) {
 		if (atom_is_type(atom, ATOM_TAG_OPEN) && (*atom->value == '*')) {
 			atom_group_t *subgrp;
 			char bullet[10];
-			int buflen;
+			size_t buflen;
 			char *buf;
 			char *cursor;
 
@@ -613,7 +621,7 @@ void print_list_tag_group(const atom_group_t *atoms) {
 			}
 
 			/* Allocate a buffer that's large enough to hold the item. */
-			buf = malloc(buflen * 1.3 * sizeof(char));
+			buf = malloc((size_t)(buflen * 1.3) * sizeof(char));
 			*buf = '\0';
 
 			/* Buffer the contents of the list item. */
@@ -737,7 +745,7 @@ void print_table_tag_group(const atom_group_t *atoms) {
 	/* Determine the maximum size of each column. */
 	for (c = 0; c < cols; c++) {
 		for (r = 0; r < rows; r++) {
-			int cz = strlen(table[r][c]);
+			int cz = (int)strlen(table[r][c]);
 			if (colsizes[c] < cz)
 				colsizes[c] = cz;
 		}
@@ -753,7 +761,7 @@ void print_table_tag_group(const atom_group_t *atoms) {
 			int cz, left, right;
 
 			/* Determine paddings for centering. */
-			cz = colsizes[c] - strlen(table[r][c]);
+			cz = colsizes[c] - (int)strlen(table[r][c]);
 			left = cz / 2;
 			right = cz - left;
 
