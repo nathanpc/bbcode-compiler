@@ -51,6 +51,7 @@ int main(int argc, char **argv) {
 	atom_t *atom;
 	int ret;
 	FILE *stream;
+	int bomskip;
 
 	/* Take a memory snapshot for memory leak detection. */
 	mem_snapshot_start();
@@ -61,6 +62,7 @@ int main(int argc, char **argv) {
 	paragrp = NULL;
 	atomsgrp = NULL;
 	stream = stdin;
+	bomskip = -1;
 	urls = atom_group_new();
 
 	/* Check if we should read from a file. */
@@ -75,7 +77,16 @@ int main(int argc, char **argv) {
 
 	/* Go through input line-by-line. */
 	while (fgets(line, sizeof(line), stream)) {
-		char *buf;
+		char *buf = NULL;
+
+		/* Check for an Unicode BOM. */
+		if (bomskip < 0) {
+			bomskip = utfbom(line);
+			if (bomskip == 2) {
+				fprintf(stderr, "error: file encoded as UTF-16, aborting.\n");
+				break;
+			}
+		}
 
 		/* Removing newline from the end of the string. */
 		buf = line + strlen(line) - 1;
@@ -89,7 +100,8 @@ int main(int argc, char **argv) {
 		/* Are we parsing a new atom or continuing from a previous one? */
 		if (ret == 0) {
 			/* Parse atom from line. */
-			ret = atom_parse_line(atom, line);
+			ret = atom_parse_line(atom, line + bomskip);
+			bomskip = 0;
 		} else {
 			/* Do we need to keep parsing the last line? */
 			ret = atom_parse_continue(atom, line);

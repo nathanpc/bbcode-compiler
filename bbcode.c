@@ -54,6 +54,7 @@ int main(int argc, char **argv) {
 	char **tokens;
 	char **cur;
 	FILE *stream;
+	int bomskip;
 
 	/* Take a memory snapshot for memory leak detection. */
 	mem_snapshot_start();
@@ -74,11 +75,24 @@ int main(int argc, char **argv) {
 	code = malloc(LINE_MAX * sizeof(char));
 	*code = '\0';
 	len = 0;
+	bomskip = -1;
 	while (fgets(line, sizeof(line), stream)) {
-		size_t linelen = strlen(line);
+		/* Check for an Unicode BOM. */
+		if (bomskip < 0) {
+			bomskip = utfbom(line);
+			if (bomskip == 2) {
+				fprintf(stderr, "error: file encoded as UTF-16, aborting.\n");
+				break;
+			}
+		}
+
+		/* Concatenates the read string into our file buffer. */
+		size_t linelen = strlen(line) - bomskip;
 		code = realloc(code, (len + linelen + 1) * sizeof(char));
-		strcat(code + len, line);
+		strcat(code + len, line + bomskip);
 		len += linelen;
+		if (bomskip != 0)
+			bomskip = 0;
 	}
 
 	/* Close the file stream if needed. */

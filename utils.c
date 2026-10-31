@@ -161,6 +161,37 @@ int strcmpe(const char *str, const char *suffix) {
 }
 
 /**
+ * Detects an Unicode Byte Order Mark (BOM) flag at the beginning of a string.
+ *
+ * @param text String to check be checked.
+ *
+ * @return Number of characters at the beginning of the string corresponding to
+ *         an Unicode BOM. Zero means no BOM was found.
+ */
+int utfbom(const char* text) {
+	/* Determine if the NUL terminator happens earlier than expected. */
+	int term;
+	for (term = 0; term < 3; term++) {
+		if (text[term] == '\0')
+			break;
+	}
+
+	/* Check for a BOM. */
+	if ((term > 2) && (TRUNC8(text[0]) == 0xEF) && (TRUNC8(text[1]) == 0xBB) &&
+			(TRUNC8(text[2]) == 0xBF)) {
+		return 3;
+	} else if ((term > 1) && (TRUNC8(text[0]) == 0xFE) &&
+			(TRUNC8(text[1]) == 0xFF)) {
+		return 2;
+	} else if ((term > 1) && (TRUNC8(text[0]) == 0xFF) &&
+			(TRUNC8(text[1]) == 0xFE)) {
+		return 2;
+	}
+
+	return 0;
+}
+
+/**
  * Tells you where to break a long line of text according to a line margin.
  *
  * @param text   Text to be broken up in smaller chunks.
